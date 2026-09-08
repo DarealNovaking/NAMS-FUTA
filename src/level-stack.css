@@ -1,0 +1,6 @@
+.level-card { transform: translateY(0) translateX(0); z-index: 5; }
+.level-card:nth-child(1) { transform: translateY(-96px) translateX(-16px); z-index: 1; }
+.level-card:nth-child(2) { transform: translateY(-48px) translateX(-8px); z-index: 2; }
+.level-card:nth-child(3) { transform: translateY(0) translateX(0); z-index: 3; }
+.level-card:nth-child(4) { transform: translateY(48px) translateX(8px); z-index: 2; }
+.level-card:nth-child(5) { transform: translateY(96px) translateX(16px); z-index: 1; }
