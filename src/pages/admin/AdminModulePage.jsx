@@ -18,83 +18,43 @@ const configs = {
 
 const slugify = (value) => String(value || '').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 function emptyFor(cfg){ return Object.fromEntries((cfg.fields || []).map(([name,,type]) => [name,type==='checkbox'?false:''])); }
-function normalizeValue(value,type){
-  if(type==='checkbox') return Boolean(value);
-  if(type==='number') return value===''?null:Number(value);
-  if(type==='array') return Array.isArray(value)?value:String(value||'').split(',').map((item)=>item.trim()).filter(Boolean);
-  return value===''?null:value;
-}
-function labelForLookup(row, table){
-  if(table==='levels') return row.name;
-  if(table==='sessions') return row.name;
-  if(table==='events') return row.title;
-  if(table==='administrations') return row.name;
-  if(table==='documents') return row.title;
-  return row.name || row.title || row.code || row.id;
-}
+function normalizeValue(value,type){ if(type==='checkbox')return Boolean(value); if(type==='number')return value===''?null:Number(value); if(type==='array')return Array.isArray(value)?value:String(value||'').split(',').map((item)=>item.trim()).filter(Boolean); return value===''?null:value; }
+function labelForLookup(row,table){ if(table==='levels'||table==='sessions'||table==='administrations')return row.name; if(table==='events'||table==='documents')return row.title; return row.name||row.title||row.code||row.id; }
 
 export default function AdminModulePage({ module }) {
-  const cfg = configs[module];
-  const table = cfg?.table || module;
-  const [rows,setRows]=useState([]), [loading,setLoading]=useState(true), [error,setError]=useState(''), [query,setQuery]=useState('');
-  const [editing,setEditing]=useState(null), [show,setShow]=useState(false), [saving,setSaving]=useState(false), [profile,setProfile]=useState(null), [lookups,setLookups]=useState({});
+  const cfg=configs[module]; const table=cfg?.table||module;
+  const [rows,setRows]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[query,setQuery]=useState('');
+  const [editing,setEditing]=useState(null),[show,setShow]=useState(false),[saving,setSaving]=useState(false),[profile,setProfile]=useState(null),[lookups,setLookups]=useState({});
   const [form,setForm]=useState(()=>cfg?emptyFor(cfg):{});
 
-  async function load(){
-    if(!supabase||!cfg)return;
-    setLoading(true); setError('');
-    const result=await supabase.from(table).select('*').order('created_at',{ascending:false}).limit(200);
-    if(result.error)setError(result.error.message); else setRows(result.data||[]);
-    setLoading(false);
-  }
+  async function load(){ if(!supabase||!cfg)return; setLoading(true);setError('');const result=await supabase.from(table).select('*').order('created_at',{ascending:false}).limit(200);if(result.error)setError(result.error.message);else setRows(result.data||[]);setLoading(false); }
   async function loadLookups(){
     if(!supabase||!cfg)return;
     const tables=[...new Set((cfg.fields||[]).filter(([, ,type])=>type==='lookup').map(([, , ,lookup])=>lookup))];
-    const entries=await Promise.all(tables.map(async (lookup)=>{
-      const orderColumn=lookup==='events'||lookup==='documents'||lookup==='administrations'?'created_at':'name';
-      const result=await supabase.from(lookup).select('*').order(orderColumn,{ascending:false}).limit(300);
-      return [lookup,result.data||[]];
-    }));
+    const entries=await Promise.all(tables.map(async(lookup)=>{const orderColumn=['events','documents','administrations'].includes(lookup)?'created_at':'name';const result=await supabase.from(lookup).select('*').order(orderColumn,{ascending:false}).limit(300);return [lookup,result.data||[]];}));
     setLookups(Object.fromEntries(entries));
   }
-  useEffect(()=>{ getCurrentProfile().then(({profile:current})=>setProfile(current)); load(); loadLookups(); },[table]);
-
-  const filtered=useMemo(()=>{
-    const needle=query.trim().toLowerCase(); if(!needle)return rows;
-    return rows.filter((row)=>Object.values(row).join(' ').toLowerCase().includes(needle));
-  },[rows,query]);
-
+  useEffect(()=>{getCurrentProfile().then(({profile:current})=>setProfile(current));load();loadLookups();},[table]);
+  const filtered=useMemo(()=>{const needle=query.trim().toLowerCase();if(!needle)return rows;return rows.filter((row)=>Object.values(row).join(' ').toLowerCase().includes(needle));},[rows,query]);
   function edit(row){
     setEditing(row);
     setForm(Object.fromEntries((cfg.fields||[]).map(([name,,type])=>[name,type==='array'?(Array.isArray(row[name])?row[name].join(', '):row[name]||''):(row[name]??'')]));
     setShow(true);
   }
   function create(){setEditing(null);setForm(emptyFor(cfg));setShow(true);setError('');}
-  function change(event){const {name,type,checked,value}=event.target;setForm((current)=>({...current,[name]:type==='checkbox'?checked:value}));}
+  function change(event){const{name,type,checked,value}=event.target;setForm((current)=>({...current,[name]:type==='checkbox'?checked:value}));}
   async function writeActivity(action,resourceId,metadata={}){if(!supabase||!profile?.id)return;const result=await supabase.from('activity_logs').insert({user_id:profile.id,action,resource_type:table,resource_id:resourceId,metadata});if(result.error)console.warn('Activity log failed:',result.error.message);}
-
   async function save(event){
-    event.preventDefault(); setSaving(true); setError('');
-    const payload={};
-    for(const [name,,type] of cfg.fields)payload[name]=normalizeValue(form[name],type);
-    if(module==='projects'){
-      payload.slug=editing?.slug||slugify(form.title);
-      if(!payload.slug){setError('A project title is required to generate its slug.');setSaving(false);return;}
-    }
-    if(module==='announcements' && payload.published && payload.publish_at && new Date(payload.publish_at).toString()==='Invalid Date'){setError('The publication date is invalid.');setSaving(false);return;}
-    if(['events','meetings','administrations','executives','projects','media'].includes(module) && profile?.id){
-      if(module==='events'||module==='meetings')payload.created_by=editing?.created_by||profile.id;
-      if(module==='media')payload.uploaded_by=editing?.uploaded_by||profile.id;
-    }
-    if(module==='announcements')payload.created_by=editing?.created_by||profile?.id||null;
+    event.preventDefault();setSaving(true);setError('');const payload={};for(const[name,,type]of cfg.fields)payload[name]=normalizeValue(form[name],type);
+    if(module==='projects'){payload.slug=editing?.slug||slugify(form.title);if(!payload.slug){setError('A project title is required to generate its slug.');setSaving(false);return;}}
+    if(module==='announcements'&&payload.published&&payload.publish_at&&new Date(payload.publish_at).toString()==='Invalid Date'){setError('The publication date is invalid.');setSaving(false);return;}
+    if(profile?.id){if(module==='events'||module==='meetings')payload.created_by=editing?.created_by||profile.id;if(module==='media')payload.uploaded_by=editing?.uploaded_by||profile.id;if(module==='announcements')payload.created_by=editing?.created_by||profile.id;}
     const missing=(cfg.required||[]).filter((name)=>{const value=payload[name];return value===null||value===undefined||value===''||(Array.isArray(value)&&value.length===0);});
     if(missing.length){setError(`Please provide: ${missing.join(', ')}.`);setSaving(false);return;}
     const result=editing?await supabase.from(table).update(payload).eq('id',editing.id).select().single():await supabase.from(table).insert(payload).select().single();
-    if(result.error)setError(result.error.message); else {await writeActivity(editing?'update':'create',result.data?.id,{title:form.title||form.name||form.full_name||null});setShow(false);await load();}
-    setSaving(false);
+    if(result.error)setError(result.error.message);else{await writeActivity(editing?'update':'create',result.data?.id,{title:form.title||form.name||form.full_name||null});setShow(false);await load();}setSaving(false);
   }
   async function remove(row){if(!confirm(`Delete this ${cfg.title.toLowerCase()} record?`))return;setError('');const result=await supabase.from(table).delete().eq('id',row.id);if(result.error)setError(result.error.message);else{await writeActivity('delete',row.id,{title:row.title||row.name||row.full_name||null});await load();}}
-
   if(!cfg)return <main className="admin-shell"><div className="admin-empty"><p>This administration module is not configured yet.</p></div></main>;
   return <main className="admin-shell">
     <div className="admin-crud-head"><div><p className="eyebrow">ADMIN MODULE</p><h1>{cfg.title}</h1><p>{cfg.description}</p></div><button className="admin-primary" onClick={create}><Plus size={17}/> New record</button></div>
@@ -102,8 +62,7 @@ export default function AdminModulePage({ module }) {
     {error&&<div className="form-error admin-error">{error}</div>}
     {loading?<div className="admin-empty"><Loader2 size={18} className="spin"/> Loading…</div>:filtered.length?<div className="admin-table-wrap"><table className="admin-table"><thead><tr>{cfg.fields.slice(0,4).map(([name,label])=><th key={name}>{label}</th>)}<th>Actions</th></tr></thead><tbody>{filtered.map((row)=><tr key={row.id}>{cfg.fields.slice(0,4).map(([name,,type,lookup])=><td key={name}>{type==='lookup'?labelForLookup((lookups[lookup]||[]).find((item)=>item.id===row[name])||{},lookup):typeof row[name]==='boolean'?(row[name]?'Yes':'No'):Array.isArray(row[name])?row[name].join(', '):String(row[name]??'—').slice(0,90)}</td>)}<td><div className="admin-row-actions"><button onClick={()=>edit(row)} aria-label="Edit record"><Pencil size={15}/></button><button onClick={()=>remove(row)} aria-label="Delete record"><Trash2 size={15}/></button></div></td></tr>)}</tbody></table></div>:<div className="admin-empty"><p>No records yet.</p></div>}
     {show&&<div className="admin-modal-backdrop" onMouseDown={(event)=>event.target===event.currentTarget&&setShow(false)}><form className="admin-modal" onSubmit={save}><div className="admin-modal-head"><div><p className="eyebrow">{editing?'EDIT':'CREATE'}</p><h2>{editing?'Update record':'New record'}</h2></div><button type="button" onClick={()=>setShow(false)} aria-label="Close"><X/></button></div>
-      <div className="admin-form-grid">{cfg.fields.map(([name,label,type,required,options])=><label key={name} className={type==='textarea'?'full':''}>{label}{required?' *':''}
-        {type==='textarea'?<textarea name={name} rows="4" value={form[name]??''} onChange={change}/>:type==='checkbox'?<input type="checkbox" name={name} checked={Boolean(form[name])} onChange={change}/>:type==='lookup'?<select name={name} value={form[name]??''} onChange={change}><option value="">Select {label.toLowerCase()}</option>{(lookups[options]||[]).map((item)=><option key={item.id} value={item.id}>{labelForLookup(item,options)}</option>)}</select>:type==='select'?<select name={name} value={form[name]??''} onChange={change}><option value="">Select {label.toLowerCase()}</option>{options.map((option)=><option key={option} value={option}>{option}</option>)}</select>:type==='array'?<input type="text" name={name} value={form[name]??''} onChange={change} placeholder="Separate values with commas"/>:<input type={type||'text'} name={name} value={form[name]??''} onChange={change} required={required}/>}</label>)}</div>
+      <div className="admin-form-grid">{cfg.fields.map(([name,label,type,required,options])=><label key={name} className={type==='textarea'?'full':''}>{label}{required?' *':''}{type==='textarea'?<textarea name={name} rows="4" value={form[name]??''} onChange={change}/>:type==='checkbox'?<input type="checkbox" name={name} checked={Boolean(form[name])} onChange={change}/>:type==='lookup'?<select name={name} value={form[name]??''} onChange={change}><option value="">Select {label.toLowerCase()}</option>{(lookups[options]||[]).map((item)=><option key={item.id} value={item.id}>{labelForLookup(item,options)}</option>)}</select>:type==='select'?<select name={name} value={form[name]??''} onChange={change}><option value="">Select {label.toLowerCase()}</option>{options.map((option)=><option key={option} value={option}>{option}</option>)}</select>:type==='array'?<input type="text" name={name} value={form[name]??''} onChange={change} placeholder="Separate values with commas"/>:<input type={type||'text'} name={name} value={form[name]??''} onChange={change} required={required}/>}</label>)}</div>
       <div className="admin-modal-actions"><button type="button" className="admin-secondary" onClick={()=>setShow(false)}>Cancel</button><button className="admin-primary" disabled={saving}>{saving?<><Loader2 size={16} className="spin"/> Saving…</>:<><Plus size={16}/> Save</>}</button></div>
     </form></div>}
   </main>;
