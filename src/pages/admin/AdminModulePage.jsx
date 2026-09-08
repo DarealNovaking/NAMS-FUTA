@@ -9,6 +9,8 @@ const configs = {
   events: { title: 'Events', description: 'Manage institutional events and their archive metadata.', fields: [['title','Title','text',true],['description','Description','textarea'],['event_date','Date','date'],['start_time','Start time','time'],['end_time','End time','time'],['venue','Venue'],['cover_image_path','Cover image','file',false,'event-media',10],['status','Status','select',true,['draft','published','archived']],['event_category','Category']], required:['title','status'] },
   media: { title: 'Media', description: 'Manage photos, videos, flyers and event media metadata.', fields: [['title','Title'],['description','Description','textarea'],['file_path','Media file','file',true,'event-media',100],['category','Category'],['year','Year','number'],['event_id','Event','lookup','events'],['media_type','Media type','select',true,['image','video','document','flyer','other']],['visibility','Visibility','select',true,visibilityOptions]], required:['visibility','media_type'] },
   meetings: { title: 'Meetings', description: 'Manage executive, congress, emergency and committee meetings.', fields: [['administration_id','Administration','lookup','administrations'],['year','Year','number',true],['meeting_type','Meeting type','select',true,['executive','congress','emergency','committee']],['title','Title','text',true],['meeting_date','Date','date'],['venue','Venue'],['description','Description','textarea']], required:['year','meeting_type','title'] },
+  'event-documents': { table:'event_documents', title:'Event Documents', description:'Attach published archive documents to institutional events with a clear document role.', fields:[['event_id','Event','lookup','events',true],['document_id','Document','lookup','documents',true],['document_type','Document type','select',true,['proposal','budget','invitation','speakers','programme','attendance','slides','report','supporting_document']],['display_order','Display order','number',true]], required:['event_id','document_id','document_type','display_order'] },
+  'meeting-documents': { table:'meeting_documents', title:'Meeting Documents', description:'Attach published archive documents to meetings and preserve their order and purpose.', fields:[['meeting_id','Meeting','lookup','meetings',true],['document_id','Document','lookup','documents',true],['document_type','Document type','select',true,['notice','agenda','attendance','minutes','resolution','supporting_document']],['display_order','Display order','number',true]], required:['meeting_id','document_id','document_type','display_order'] },
   administrations: { title: 'Administrations', description: 'Manage the succession history of NAMS FUTA administrations.', fields: [['name','Name','text',true],['session_id','Academic session','lookup','sessions'],['start_date','Start date','date'],['end_date','End date','date'],['is_current','Current administration','checkbox']], required:['name','is_current'] },
   executives: { title: 'Executives', description: 'Manage executive council profiles and display order.', fields: [['name','Name','text',true],['position','Position','text',true],['administration_id','Administration','lookup','administrations',true],['photo_path','Photo','file',false,'executive-photos',5],['biography','Biography','textarea'],['display_order','Display order','number',true]], required:['name','position','administration_id','display_order'] },
   announcements: { title: 'Announcements', description: 'Manage scheduled public news and announcements.', fields: [['title','Title','text',true],['content','Content','textarea',true],['cover_image_path','Cover image path'],['priority','Priority','number',true],['published','Published','checkbox'],['publish_at','Publish at','datetime-local'],['expires_at','Expires at','datetime-local'],['category','Category']], required:['title','content','priority','published'] },
@@ -19,16 +21,14 @@ const configs = {
 const slugify = (value) => String(value || '').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 function emptyFor(cfg){ return Object.fromEntries((cfg.fields || []).map(([name,,type]) => [name,type==='checkbox'?false:''])); }
 function normalizeValue(value,type){ if(type==='checkbox')return Boolean(value); if(type==='number')return value===''?null:Number(value); if(type==='array')return Array.isArray(value)?value:String(value||'').split(',').map((item)=>item.trim()).filter(Boolean); return value===''?null:value; }
-function labelForLookup(row,table){ if(table==='levels'||table==='sessions'||table==='administrations')return row.name; if(table==='events'||table==='documents')return row.title; return row.name||row.title||row.code||row.id; }
+function labelForLookup(row,table){ if(table==='levels'||table==='sessions'||table==='administrations')return row.name; if(table==='events'||table==='documents')return row.title; if(table==='meetings')return `${row.title || 'Meeting'}${row.meeting_date ? ` · ${row.meeting_date}` : ''}`; return row.name||row.title||row.code||row.id; }
 
 const fileRules = {
   'event-media': { max: 100 * 1024 * 1024, types: ['image/jpeg','image/png','image/webp','video/mp4','video/webm'] },
   'executive-photos': { max: 5 * 1024 * 1024, types: ['image/jpeg','image/png','image/webp'] },
-  gallery: { max: 10 * 1024 * 1024, types: ['image/jpeg','image/png','image/webp'] },
 };
-
 function safeFileName(name){ return String(name || 'file').toLowerCase().replace(/[^a-z0-9._-]+/g,'-').replace(/-+/g,'-'); }
-function filePath(bucket, file){ return `admin/${new Date().toISOString().slice(0,10)}/${crypto.randomUUID()}-${safeFileName(file.name)}`; }
+function filePath(file){ return `admin/${new Date().toISOString().slice(0,10)}/${crypto.randomUUID()}-${safeFileName(file.name)}`; }
 
 export default function AdminModulePage({ module }) {
   const cfg=configs[module]; const table=cfg?.table||module;
@@ -40,32 +40,16 @@ export default function AdminModulePage({ module }) {
   async function loadLookups(){
     if(!supabase||!cfg)return;
     const tables=[...new Set((cfg.fields||[]).filter(([, ,type])=>type==='lookup').map(([, , ,lookup])=>lookup))];
-    const entries=await Promise.all(tables.map(async(lookup)=>{const orderColumn=['events','documents','administrations'].includes(lookup)?'created_at':'name';const result=await supabase.from(lookup).select('*').order(orderColumn,{ascending:false}).limit(300);return [lookup,result.data||[]];}));
+    const entries=await Promise.all(tables.map(async(lookup)=>{const orderColumn=['events','documents','administrations','meetings'].includes(lookup)?'created_at':'name';const result=await supabase.from(lookup).select('*').order(orderColumn,{ascending:false}).limit(300);return [lookup,result.data||[]];}));
     setLookups(Object.fromEntries(entries));
   }
   useEffect(()=>{getCurrentProfile().then(({profile:current})=>setProfile(current));load();loadLookups();},[table]);
   const filtered=useMemo(()=>{const needle=query.trim().toLowerCase();if(!needle)return rows;return rows.filter((row)=>Object.values(row).join(' ').toLowerCase().includes(needle));},[rows,query]);
-  function edit(row){
-    setEditing(row);
-    setForm(Object.fromEntries((cfg.fields||[]).map(([name,,type])=>[name,type==='array'?(Array.isArray(row[name])?row[name].join(', '):row[name]||''):(row[name]??'')]));
-    setFiles({});
-    setShow(true);
-  }
+  function edit(row){setEditing(row);setForm(Object.fromEntries((cfg.fields||[]).map(([name,,type])=>[name,type==='array'?(Array.isArray(row[name])?row[name].join(', '):row[name]||''):(row[name]??'')]));setFiles({});setShow(true);}
   function create(){setEditing(null);setForm(emptyFor(cfg));setFiles({});setShow(true);setError('');}
-  function change(event){const{name,type,checked,value,files:inputFiles}=event.target; if(type==='file'){setFiles((current)=>({...current,[name]:inputFiles?.[0]||null}));return;} setForm((current)=>({...current,[name]:type==='checkbox'?checked:value}));}
+  function change(event){const{name,type,checked,value,files:inputFiles}=event.target;if(type==='file'){setFiles((current)=>({...current,[name]:inputFiles?.[0]||null}));return;}setForm((current)=>({...current,[name]:type==='checkbox'?checked:value}));}
   async function writeActivity(action,resourceId,metadata={}){if(!supabase||!profile?.id)return;const result=await supabase.from('activity_logs').insert({user_id:profile.id,action,resource_type:table,resource_id:resourceId,metadata});if(result.error)console.warn('Activity log failed:',result.error.message);}
-
-  async function uploadFile(field, bucket, file){
-    if(!file)return null;
-    const rule=fileRules[bucket];
-    if(!rule)throw new Error(`Unsupported storage bucket: ${bucket}`);
-    if(file.size>rule.max)throw new Error(`${field} is too large. Maximum allowed size is ${Math.round(rule.max/1024/1024)}MB.`);
-    if(!rule.types.includes(file.type))throw new Error(`${field} has an unsupported file type.`);
-    const path=filePath(bucket,file);
-    const result=await supabase.storage.from(bucket).upload(path,file,{contentType:file.type,upsert:false});
-    if(result.error)throw result.error;
-    return path;
-  }
+  async function uploadFile(field,bucket,file){if(!file)return null;const rule=fileRules[bucket];if(!rule)throw new Error(`Unsupported storage bucket: ${bucket}`);if(file.size>rule.max)throw new Error(`${field} is too large. Maximum allowed size is ${Math.round(rule.max/1024/1024)}MB.`);if(!rule.types.includes(file.type))throw new Error(`${field} has an unsupported file type.`);const path=filePath(file);const result=await supabase.storage.from(bucket).upload(path,file,{contentType:file.type,upsert:false});if(result.error)throw result.error;return path;}
 
   async function save(event){
     event.preventDefault();setSaving(true);setError('');let createdId=null;const uploaded=[];
@@ -77,25 +61,13 @@ export default function AdminModulePage({ module }) {
       if(profile?.id){if(module==='events'||module==='meetings')payload.created_by=editing?.created_by||profile.id;if(module==='media')payload.uploaded_by=editing?.uploaded_by||profile.id;if(module==='announcements')payload.created_by=editing?.created_by||profile.id;}
       const missing=(cfg.required||[]).filter((name)=>{const value=payload[name];if(name==='file_path'&&editing?.file_path)return false;return value===null||value===undefined||value===''||(Array.isArray(value)&&value.length===0);});
       if(missing.length)throw new Error(`Please provide: ${missing.join(', ')}.`);
-
+      if((module==='event-documents'||module==='meeting-documents')&&payload.document_id){const doc=await supabase.from('documents').select('id,status,visibility').eq('id',payload.document_id).maybeSingle();if(doc.error)throw doc.error;if(!doc.data||doc.data.status!=='published'||doc.data.visibility!=='public')throw new Error('Only published public documents can be attached to public event or meeting records.');}
       for(const[name,,type,,bucket]=cfg.fields){if(type!=='file')continue;const file=files[name];if(!file){if(editing?.[name])payload[name]=editing[name];continue;}const path=await uploadFile(name,bucket,file);uploaded.push({bucket,path});payload[name]=path;}
-
-      if(module==='administrations'&&payload.is_current){
-        const currentResult=await supabase.from('administrations').select('id,name').eq('is_current',true).neq('id',editing?.id||'').limit(1);
-        if(currentResult.error)throw currentResult.error;
-        if(currentResult.data?.length)throw new Error(`“${currentResult.data[0].name}” is already marked as the current administration. End or transition that administration before selecting a new current administration.`);
-      }
-
+      if(module==='administrations'&&payload.is_current){const currentResult=await supabase.from('administrations').select('id,name').eq('is_current',true).neq('id',editing?.id||'').limit(1);if(currentResult.error)throw currentResult.error;if(currentResult.data?.length)throw new Error(`“${currentResult.data[0].name}” is already marked as the current administration. End or transition that administration before selecting a new current administration.`);}
       const result=editing?await supabase.from(table).update(payload).eq('id',editing.id).select().single():await supabase.from(table).insert(payload).select().single();
       if(result.error)throw result.error;
-      createdId=result.data?.id;
-      await writeActivity(editing?'update':'create',createdId,{title:form.title||form.name||form.full_name||null,files:Object.keys(files).filter((key)=>files[key]).length});
-      setShow(false);setFiles({});await load();
-    } catch (err) {
-      if(!editing&&createdId)await supabase.from(table).delete().eq('id',createdId);
-      if(uploaded.length)await Promise.all(uploaded.map(({bucket,path})=>supabase.storage.from(bucket).remove([path])));
-      setError(err?.message||'Unable to save this record.');
-    } finally {setSaving(false);}
+      createdId=result.data?.id;await writeActivity(editing?'update':'create',createdId,{title:form.title||form.name||form.full_name||null,files:Object.keys(files).filter((key)=>files[key]).length});setShow(false);setFiles({});await load();
+    } catch(err){if(!editing&&createdId)await supabase.from(table).delete().eq('id',createdId);if(uploaded.length)await Promise.all(uploaded.map(({bucket,path})=>supabase.storage.from(bucket).remove([path])));setError(err?.message||'Unable to save this record.');} finally {setSaving(false);}
   }
   async function remove(row){if(!confirm(`Delete this ${cfg.title.toLowerCase()} record?`))return;setError('');const result=await supabase.from(table).delete().eq('id',row.id);if(result.error)setError(result.error.message);else{await writeActivity('delete',row.id,{title:row.title||row.name||row.full_name||null});await load();}}
   if(!cfg)return <main className="admin-shell"><div className="admin-empty"><p>This administration module is not configured yet.</p></div></main>;
