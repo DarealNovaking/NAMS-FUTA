@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { Loader2, Pencil, Plus, Search, Trash2, Upload, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { getCurrentProfile } from '../../lib/auth';
 
 const visibilityOptions = ['public', 'student', 'admin'];
 const configs = {
   projects: { title: 'Projects', description: 'Manage archived student research and project records.', fields: [['title','Title','text',true],['abstract','Abstract','textarea'],['authors','Authors','array',true],['supervisor','Supervisor'],['department','Department'],['research_area','Research area'],['level_id','Academic level','lookup','levels'],['session_id','Academic session','lookup','sessions'],['keywords','Keywords','array',true],['document_id','Archive document','lookup','documents'],['visibility','Visibility','select',true,visibilityOptions]], required:['title','authors','keywords','visibility'] },
-  events: { title: 'Events', description: 'Manage institutional events and their archive metadata.', fields: [['title','Title','text',true],['description','Description','textarea'],['event_date','Date','date'],['start_time','Start time','time'],['end_time','End time','time'],['venue','Venue'],['cover_image_path','Cover image path'],['status','Status','select',true,['draft','published','archived']],['event_category','Category']], required:['title','status'] },
-  media: { title: 'Media', description: 'Manage photos, videos, flyers and event media metadata.', fields: [['title','Title'],['description','Description','textarea'],['file_path','File path','text',true],['category','Category'],['year','Year','number'],['event_id','Event','lookup','events'],['media_type','Media type','select',false,['image','video','document','flyer','other']],['visibility','Visibility','select',true,visibilityOptions]], required:['file_path','visibility'] },
+  events: { title: 'Events', description: 'Manage institutional events and their archive metadata.', fields: [['title','Title','text',true],['description','Description','textarea'],['event_date','Date','date'],['start_time','Start time','time'],['end_time','End time','time'],['venue','Venue'],['cover_image_path','Cover image','file',false,'event-media',10],['status','Status','select',true,['draft','published','archived']],['event_category','Category']], required:['title','status'] },
+  media: { title: 'Media', description: 'Manage photos, videos, flyers and event media metadata.', fields: [['title','Title'],['description','Description','textarea'],['file_path','Media file','file',true,'event-media',100],['category','Category'],['year','Year','number'],['event_id','Event','lookup','events'],['media_type','Media type','select',true,['image','video','document','flyer','other']],['visibility','Visibility','select',true,visibilityOptions]], required:['visibility','media_type'] },
   meetings: { title: 'Meetings', description: 'Manage executive, congress, emergency and committee meetings.', fields: [['administration_id','Administration','lookup','administrations'],['year','Year','number',true],['meeting_type','Meeting type','select',true,['executive','congress','emergency','committee']],['title','Title','text',true],['meeting_date','Date','date'],['venue','Venue'],['description','Description','textarea']], required:['year','meeting_type','title'] },
   administrations: { title: 'Administrations', description: 'Manage the succession history of NAMS FUTA administrations.', fields: [['name','Name','text',true],['session_id','Academic session','lookup','sessions'],['start_date','Start date','date'],['end_date','End date','date'],['is_current','Current administration','checkbox']], required:['name','is_current'] },
-  executives: { title: 'Executives', description: 'Manage executive council profiles and display order.', fields: [['name','Name','text',true],['position','Position','text',true],['administration_id','Administration','lookup','administrations',true],['photo_path','Photo path'],['biography','Biography','textarea'],['display_order','Display order','number',true]], required:['name','position','administration_id','display_order'] },
+  executives: { title: 'Executives', description: 'Manage executive council profiles and display order.', fields: [['name','Name','text',true],['position','Position','text',true],['administration_id','Administration','lookup','administrations',true],['photo_path','Photo','file',false,'executive-photos',5],['biography','Biography','textarea'],['display_order','Display order','number',true]], required:['name','position','administration_id','display_order'] },
   announcements: { title: 'Announcements', description: 'Manage scheduled public news and announcements.', fields: [['title','Title','text',true],['content','Content','textarea',true],['cover_image_path','Cover image path'],['priority','Priority','number',true],['published','Published','checkbox'],['publish_at','Publish at','datetime-local'],['expires_at','Expires at','datetime-local'],['category','Category']], required:['title','content','priority','published'] },
   alumni: { title: 'Alumni', description: 'Maintain the alumni directory.', fields: [['name','Full name','text',true],['graduation_year','Graduation year','number'],['session_id','Academic session','lookup','sessions'],['profession','Profession'],['organization','Organization'],['bio','Biography','textarea'],['photo_path','Photo path'],['visibility','Visibility','select',true,visibilityOptions]], required:['name','visibility'] },
   members: { title: 'Membership', description: 'Private membership records. Access remains controlled by RLS.', table:'membership_records', fields: [['full_name','Full name'],['matric_number','Matric number'],['membership_number','Membership number'],['user_id','User ID'],['session_id','Academic session','lookup','sessions'],['level_id','Academic level','lookup','levels'],['email','Email','email'],['phone','Phone','tel'],['status','Status','select',true,['active','inactive','suspended','graduated']],['joined_at','Joined at','date']], required:['status'] }
@@ -21,10 +21,19 @@ function emptyFor(cfg){ return Object.fromEntries((cfg.fields || []).map(([name,
 function normalizeValue(value,type){ if(type==='checkbox')return Boolean(value); if(type==='number')return value===''?null:Number(value); if(type==='array')return Array.isArray(value)?value:String(value||'').split(',').map((item)=>item.trim()).filter(Boolean); return value===''?null:value; }
 function labelForLookup(row,table){ if(table==='levels'||table==='sessions'||table==='administrations')return row.name; if(table==='events'||table==='documents')return row.title; return row.name||row.title||row.code||row.id; }
 
+const fileRules = {
+  'event-media': { max: 100 * 1024 * 1024, types: ['image/jpeg','image/png','image/webp','video/mp4','video/webm'] },
+  'executive-photos': { max: 5 * 1024 * 1024, types: ['image/jpeg','image/png','image/webp'] },
+  gallery: { max: 10 * 1024 * 1024, types: ['image/jpeg','image/png','image/webp'] },
+};
+
+function safeFileName(name){ return String(name || 'file').toLowerCase().replace(/[^a-z0-9._-]+/g,'-').replace(/-+/g,'-'); }
+function filePath(bucket, file){ return `admin/${new Date().toISOString().slice(0,10)}/${crypto.randomUUID()}-${safeFileName(file.name)}`; }
+
 export default function AdminModulePage({ module }) {
   const cfg=configs[module]; const table=cfg?.table||module;
   const [rows,setRows]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[query,setQuery]=useState('');
-  const [editing,setEditing]=useState(null),[show,setShow]=useState(false),[saving,setSaving]=useState(false),[profile,setProfile]=useState(null),[lookups,setLookups]=useState({});
+  const [editing,setEditing]=useState(null),[show,setShow]=useState(false),[saving,setSaving]=useState(false),[profile,setProfile]=useState(null),[lookups,setLookups]=useState({}),[files,setFiles]=useState({});
   const [form,setForm]=useState(()=>cfg?emptyFor(cfg):{});
 
   async function load(){ if(!supabase||!cfg)return; setLoading(true);setError('');const result=await supabase.from(table).select('*').order('created_at',{ascending:false}).limit(200);if(result.error)setError(result.error.message);else setRows(result.data||[]);setLoading(false); }
@@ -39,20 +48,54 @@ export default function AdminModulePage({ module }) {
   function edit(row){
     setEditing(row);
     setForm(Object.fromEntries((cfg.fields||[]).map(([name,,type])=>[name,type==='array'?(Array.isArray(row[name])?row[name].join(', '):row[name]||''):(row[name]??'')]));
+    setFiles({});
     setShow(true);
   }
-  function create(){setEditing(null);setForm(emptyFor(cfg));setShow(true);setError('');}
-  function change(event){const{name,type,checked,value}=event.target;setForm((current)=>({...current,[name]:type==='checkbox'?checked:value}));}
+  function create(){setEditing(null);setForm(emptyFor(cfg));setFiles({});setShow(true);setError('');}
+  function change(event){const{name,type,checked,value,files:inputFiles}=event.target; if(type==='file'){setFiles((current)=>({...current,[name]:inputFiles?.[0]||null}));return;} setForm((current)=>({...current,[name]:type==='checkbox'?checked:value}));}
   async function writeActivity(action,resourceId,metadata={}){if(!supabase||!profile?.id)return;const result=await supabase.from('activity_logs').insert({user_id:profile.id,action,resource_type:table,resource_id:resourceId,metadata});if(result.error)console.warn('Activity log failed:',result.error.message);}
+
+  async function uploadFile(field, bucket, file){
+    if(!file)return null;
+    const rule=fileRules[bucket];
+    if(!rule)throw new Error(`Unsupported storage bucket: ${bucket}`);
+    if(file.size>rule.max)throw new Error(`${field} is too large. Maximum allowed size is ${Math.round(rule.max/1024/1024)}MB.`);
+    if(!rule.types.includes(file.type))throw new Error(`${field} has an unsupported file type.`);
+    const path=filePath(bucket,file);
+    const result=await supabase.storage.from(bucket).upload(path,file,{contentType:file.type,upsert:false});
+    if(result.error)throw result.error;
+    return path;
+  }
+
   async function save(event){
-    event.preventDefault();setSaving(true);setError('');const payload={};for(const[name,,type]of cfg.fields)payload[name]=normalizeValue(form[name],type);
-    if(module==='projects'){payload.slug=editing?.slug||slugify(form.title);if(!payload.slug){setError('A project title is required to generate its slug.');setSaving(false);return;}}
-    if(module==='announcements'&&payload.published&&payload.publish_at&&new Date(payload.publish_at).toString()==='Invalid Date'){setError('The publication date is invalid.');setSaving(false);return;}
-    if(profile?.id){if(module==='events'||module==='meetings')payload.created_by=editing?.created_by||profile.id;if(module==='media')payload.uploaded_by=editing?.uploaded_by||profile.id;if(module==='announcements')payload.created_by=editing?.created_by||profile.id;}
-    const missing=(cfg.required||[]).filter((name)=>{const value=payload[name];return value===null||value===undefined||value===''||(Array.isArray(value)&&value.length===0);});
-    if(missing.length){setError(`Please provide: ${missing.join(', ')}.`);setSaving(false);return;}
-    const result=editing?await supabase.from(table).update(payload).eq('id',editing.id).select().single():await supabase.from(table).insert(payload).select().single();
-    if(result.error)setError(result.error.message);else{await writeActivity(editing?'update':'create',result.data?.id,{title:form.title||form.name||form.full_name||null});setShow(false);await load();}setSaving(false);
+    event.preventDefault();setSaving(true);setError('');let createdId=null;const uploaded=[];
+    try {
+      const payload={};
+      for(const[name,,type]of cfg.fields)if(type!=='file')payload[name]=normalizeValue(form[name],type);
+      if(module==='projects'){payload.slug=editing?.slug||slugify(form.title);if(!payload.slug)throw new Error('A project title is required to generate its slug.');}
+      if(module==='announcements'&&payload.published&&payload.publish_at&&new Date(payload.publish_at).toString()==='Invalid Date')throw new Error('The publication date is invalid.');
+      if(profile?.id){if(module==='events'||module==='meetings')payload.created_by=editing?.created_by||profile.id;if(module==='media')payload.uploaded_by=editing?.uploaded_by||profile.id;if(module==='announcements')payload.created_by=editing?.created_by||profile.id;}
+      const missing=(cfg.required||[]).filter((name)=>{const value=payload[name];if(name==='file_path'&&editing?.file_path)return false;return value===null||value===undefined||value===''||(Array.isArray(value)&&value.length===0);});
+      if(missing.length)throw new Error(`Please provide: ${missing.join(', ')}.`);
+
+      for(const[name,,type,,bucket]=cfg.fields){if(type!=='file')continue;const file=files[name];if(!file){if(editing?.[name])payload[name]=editing[name];continue;}const path=await uploadFile(name,bucket,file);uploaded.push({bucket,path});payload[name]=path;}
+
+      if(module==='administrations'&&payload.is_current){
+        const currentResult=await supabase.from('administrations').select('id,name').eq('is_current',true).neq('id',editing?.id||'').limit(1);
+        if(currentResult.error)throw currentResult.error;
+        if(currentResult.data?.length)throw new Error(`“${currentResult.data[0].name}” is already marked as the current administration. End or transition that administration before selecting a new current administration.`);
+      }
+
+      const result=editing?await supabase.from(table).update(payload).eq('id',editing.id).select().single():await supabase.from(table).insert(payload).select().single();
+      if(result.error)throw result.error;
+      createdId=result.data?.id;
+      await writeActivity(editing?'update':'create',createdId,{title:form.title||form.name||form.full_name||null,files:Object.keys(files).filter((key)=>files[key]).length});
+      setShow(false);setFiles({});await load();
+    } catch (err) {
+      if(!editing&&createdId)await supabase.from(table).delete().eq('id',createdId);
+      if(uploaded.length)await Promise.all(uploaded.map(({bucket,path})=>supabase.storage.from(bucket).remove([path])));
+      setError(err?.message||'Unable to save this record.');
+    } finally {setSaving(false);}
   }
   async function remove(row){if(!confirm(`Delete this ${cfg.title.toLowerCase()} record?`))return;setError('');const result=await supabase.from(table).delete().eq('id',row.id);if(result.error)setError(result.error.message);else{await writeActivity('delete',row.id,{title:row.title||row.name||row.full_name||null});await load();}}
   if(!cfg)return <main className="admin-shell"><div className="admin-empty"><p>This administration module is not configured yet.</p></div></main>;
@@ -60,10 +103,10 @@ export default function AdminModulePage({ module }) {
     <div className="admin-crud-head"><div><p className="eyebrow">ADMIN MODULE</p><h1>{cfg.title}</h1><p>{cfg.description}</p></div><button className="admin-primary" onClick={create}><Plus size={17}/> New record</button></div>
     <div className="admin-toolbar"><label className="admin-search"><Search size={16}/><input placeholder="Search records…" value={query} onChange={(event)=>setQuery(event.target.value)}/></label><span>{filtered.length} records</span></div>
     {error&&<div className="form-error admin-error">{error}</div>}
-    {loading?<div className="admin-empty"><Loader2 size={18} className="spin"/> Loading…</div>:filtered.length?<div className="admin-table-wrap"><table className="admin-table"><thead><tr>{cfg.fields.slice(0,4).map(([name,label])=><th key={name}>{label}</th>)}<th>Actions</th></tr></thead><tbody>{filtered.map((row)=><tr key={row.id}>{cfg.fields.slice(0,4).map(([name,,type,lookup])=><td key={name}>{type==='lookup'?labelForLookup((lookups[lookup]||[]).find((item)=>item.id===row[name])||{},lookup):typeof row[name]==='boolean'?(row[name]?'Yes':'No'):Array.isArray(row[name])?row[name].join(', '):String(row[name]??'—').slice(0,90)}</td>)}<td><div className="admin-row-actions"><button onClick={()=>edit(row)} aria-label="Edit record"><Pencil size={15}/></button><button onClick={()=>remove(row)} aria-label="Delete record"><Trash2 size={15}/></button></div></td></tr>)}</tbody></table></div>:<div className="admin-empty"><p>No records yet.</p></div>}
-    {show&&<div className="admin-modal-backdrop" onMouseDown={(event)=>event.target===event.currentTarget&&setShow(false)}><form className="admin-modal" onSubmit={save}><div className="admin-modal-head"><div><p className="eyebrow">{editing?'EDIT':'CREATE'}</p><h2>{editing?'Update record':'New record'}</h2></div><button type="button" onClick={()=>setShow(false)} aria-label="Close"><X/></button></div>
-      <div className="admin-form-grid">{cfg.fields.map(([name,label,type,required,options])=><label key={name} className={type==='textarea'?'full':''}>{label}{required?' *':''}{type==='textarea'?<textarea name={name} rows="4" value={form[name]??''} onChange={change}/>:type==='checkbox'?<input type="checkbox" name={name} checked={Boolean(form[name])} onChange={change}/>:type==='lookup'?<select name={name} value={form[name]??''} onChange={change}><option value="">Select {label.toLowerCase()}</option>{(lookups[options]||[]).map((item)=><option key={item.id} value={item.id}>{labelForLookup(item,options)}</option>)}</select>:type==='select'?<select name={name} value={form[name]??''} onChange={change}><option value="">Select {label.toLowerCase()}</option>{options.map((option)=><option key={option} value={option}>{option}</option>)}</select>:type==='array'?<input type="text" name={name} value={form[name]??''} onChange={change} placeholder="Separate values with commas"/>:<input type={type||'text'} name={name} value={form[name]??''} onChange={change} required={required}/>}</label>)}</div>
-      <div className="admin-modal-actions"><button type="button" className="admin-secondary" onClick={()=>setShow(false)}>Cancel</button><button className="admin-primary" disabled={saving}>{saving?<><Loader2 size={16} className="spin"/> Saving…</>:<><Plus size={16}/> Save</>}</button></div>
+    {loading?<div className="admin-empty"><Loader2 size={18} className="spin"/> Loading…</div>:filtered.length?<div className="admin-table-wrap"><table className="admin-table"><thead><tr>{cfg.fields.filter(([, ,type])=>type!=='file').slice(0,4).map(([name,label])=><th key={name}>{label}</th>)}<th>Actions</th></tr></thead><tbody>{filtered.map((row)=><tr key={row.id}>{cfg.fields.filter(([, ,type])=>type!=='file').slice(0,4).map(([name,,type,lookup])=><td key={name}>{type==='lookup'?labelForLookup((lookups[lookup]||[]).find((item)=>item.id===row[name])||{},lookup):typeof row[name]==='boolean'?(row[name]?'Yes':'No'):Array.isArray(row[name])?row[name].join(', '):String(row[name]??'—').slice(0,90)}</td>)}<td><div className="admin-row-actions"><button onClick={()=>edit(row)} aria-label="Edit record"><Pencil size={15}/></button><button onClick={()=>remove(row)} aria-label="Delete record"><Trash2 size={15}/></button></div></td></tr>)}</tbody></table></div>:<div className="admin-empty"><p>No records yet.</p></div>}
+    {show&&<div className="admin-modal-backdrop" onMouseDown={(event)=>event.target===event.currentTarget&&!saving&&setShow(false)}><form className="admin-modal" onSubmit={save}><div className="admin-modal-head"><div><p className="eyebrow">{editing?'EDIT':'CREATE'}</p><h2>{editing?'Update record':'New record'}</h2></div><button type="button" onClick={()=>setShow(false)} aria-label="Close" disabled={saving}><X/></button></div>
+      <div className="admin-form-grid">{cfg.fields.map(([name,label,type,required,options,maxMb])=><label key={name} className={type==='textarea'||type==='file'?'full':''}>{label}{required?' *':''}{type==='textarea'?<textarea name={name} rows="4" value={form[name]??''} onChange={change}/>:type==='checkbox'?<input type="checkbox" name={name} checked={Boolean(form[name])} onChange={change}/>:type==='lookup'?<select name={name} value={form[name]??''} onChange={change}><option value="">Select {label.toLowerCase()}</option>{(lookups[options]||[]).map((item)=><option key={item.id} value={item.id}>{labelForLookup(item,options)}</option>)}</select>:type==='select'?<select name={name} value={form[name]??''} onChange={change}><option value="">Select {label.toLowerCase()}</option>{options.map((option)=><option key={option} value={option}>{option}</option>)}</select>:type==='file'?<div className="admin-file-field"><input type="file" name={name} onChange={change} accept={options==='event-media'?'image/jpeg,image/png,image/webp,video/mp4,video/webm':'image/jpeg,image/png,image/webp'}/>{files[name]&&<span><Upload size={14}/> {files[name].name} · {(files[name].size/1024/1024).toFixed(1)}MB</span>}{!files[name]&&form[name]&&<span>Existing file attached. Choose a new file to replace it.</span>}{maxMb&&<small>Maximum {maxMb}MB.</small>}</div>:type==='array'?<input type="text" name={name} value={form[name]??''} onChange={change} placeholder="Separate values with commas"/>:<input type={type||'text'} name={name} value={form[name]??''} onChange={change} required={required}/>}</label>)}</div>
+      <div className="admin-modal-actions"><button type="button" className="admin-secondary" onClick={()=>setShow(false)} disabled={saving}>Cancel</button><button className="admin-primary" disabled={saving}>{saving?<><Loader2 size={16} className="spin"/> Saving…</>:<><Plus size={16}/> Save</>}</button></div>
     </form></div>}
   </main>;
 }
