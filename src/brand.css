@@ -34,6 +34,49 @@
   letter-spacing: .08em;
 }
 
+/* Reference-inspired energy: confident lime accents, layered greens and precise directional details.
+   This translates the supplied reference into the system without reproducing the reference image. */
+.eyebrow {
+  letter-spacing: .14em;
+}
+.hero-copy::before {
+  content: '';
+  display: block;
+  width: 54px;
+  height: 3px;
+  margin-bottom: 20px;
+  background: linear-gradient(90deg, var(--nams-lime), rgba(184,239,69,0));
+  border-radius: 99px;
+  box-shadow: 0 0 18px rgba(184,239,69,.16);
+}
+.archive-card {
+  position: relative;
+  overflow: hidden;
+}
+.archive-card::before,
+.quick-link::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: linear-gradient(180deg, var(--nams-lime), rgba(184,239,69,0));
+  opacity: 0;
+  transition: opacity .28s ease, width .28s ease;
+}
+.archive-card:hover::before,
+.quick-link:hover::before {
+  width: 3px;
+  opacity: 1;
+}
+.card-index {
+  color: var(--nams-green-700);
+  font-variant-numeric: tabular-nums;
+}
+.quick-link {
+  position: relative;
+  overflow: hidden;
+}
+
 /* Intentional motion: scientific precision, not spectacle. */
 .science-stage::after {
   content: '';
@@ -128,6 +171,7 @@
   .node-one { left: 7%; }
   .node-two { right: 3%; }
   .science-stage::after { width: 220px; height: 220px; }
+  .hero-copy::before { margin-bottom: 16px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
