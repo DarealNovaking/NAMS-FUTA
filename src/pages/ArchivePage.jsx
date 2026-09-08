@@ -13,7 +13,7 @@ const config = {
   executives: { table: 'executives', title: 'Executive Council', icon: Users },
   library: { table: 'documents', title: 'Digital Library', icon: BookOpen },
   downloads: { table: 'documents', title: 'Downloads', icon: Download },
-  documents: { table: 'documents', title: 'Constitution & Policies', icon: FileText },
+  documents: { table: 'documents', title: 'Constitution & Policies', icon: FileText, filter: (q) => q.or('category.ilike.%constitution%,category.ilike.%policy%,category.ilike.%guideline%,category.ilike.%regulation%') },
   news: { table: 'announcements', title: 'News & Announcements', icon: FileText },
   about: { table: 'site_settings', title: 'About NAMS', icon: Users },
   contact: { table: 'site_settings', title: 'Contact NAMS FUTA', icon: Users },
@@ -35,20 +35,26 @@ export default function ArchivePage({ route }) {
         if (active) { setSettings(Object.fromEntries((result.data ?? []).map((r) => [r.key, r.value]))); setState({ loading: false, rows: [], error: result.error?.message }); }
         return;
       }
-      let query = supabase.from(item.table).select('*').limit(60);
+      let query = supabase.from(item.table).select('*');
+      if (route.id) query = query.eq(section === 'executives' ? 'administration_id' : 'id', route.id);
+      if (route.level) query = query.eq('level', route.level);
+      if (route.course) query = query.eq('course', route.course);
       if (item.filter) query = item.filter(query);
-      if (section === 'administrations') query = query.order('start_date', { ascending: false });
-      else if (section === 'executives') query = query.order('display_order', { ascending: true });
-      else if (section === 'events') query = query.order('date', { ascending: false });
-      else if (section === 'meetings') query = query.order('meeting_date', { ascending: false });
-      else if (section === 'announcements') query = query.order('publish_at', { ascending: false });
-      else query = query.order('created_at', { ascending: false });
-      const result = await query;
-      if (active) setState({ loading: false, rows: result.data ?? [], error: result.error?.message });
+      if (!route.id) {
+        query = query.limit(60);
+        if (section === 'administrations') query = query.order('start_date', { ascending: false });
+        else if (section === 'executives') query = query.order('display_order', { ascending: true });
+        else if (section === 'events') query = query.order('date', { ascending: false });
+        else if (section === 'meetings') query = query.order('meeting_date', { ascending: false });
+        else if (section === 'news') query = query.order('publish_at', { ascending: false });
+        else query = query.order('created_at', { ascending: false });
+      }
+      const result = route.id ? await query.maybeSingle() : await query;
+      if (active) setState({ loading: false, rows: route.id ? (result.data ? [result.data] : []) : (result.data ?? []), error: result.error?.message });
     }
     load();
     return () => { active = false; };
-  }, [section]);
+  }, [section, route.id, route.level, route.course]);
 
   if (section === 'about') return <AboutPage settings={settings} />;
   if (section === 'contact') return <ContactPage settings={settings} />;
