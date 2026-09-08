@@ -3,18 +3,18 @@ import { ArrowRight, BookOpen, CalendarDays, Download, FileText, Image, Users } 
 import { supabase } from '../lib/supabase';
 
 const config = {
-  academics: { table: 'documents', title: 'Academic Resources', icon: BookOpen, filter: (q) => q.or('category.ilike.%academic%,category.ilike.%note%,category.ilike.%manual%') },
-  'past-questions': { table: 'documents', title: 'Past Questions', icon: FileText, filter: (q) => q.or('category.ilike.%question%,category.ilike.%exam%,category.ilike.%test%') },
-  projects: { table: 'projects', title: 'Project Library', icon: FileText },
+  academics: { table: 'documents', title: 'Academic Resources', icon: BookOpen, filter: (q) => q.eq('status', 'published').eq('visibility', 'public').or('category.ilike.%academic%,category.ilike.%note%,category.ilike.%manual%') },
+  'past-questions': { table: 'documents', title: 'Past Questions', icon: FileText, filter: (q) => q.eq('status', 'published').eq('visibility', 'public').or('category.ilike.%question%,category.ilike.%exam%,category.ilike.%test%') },
+  projects: { table: 'projects', title: 'Project Library', icon: FileText, filter: (q) => q.eq('visibility', 'public') },
   events: { table: 'events', title: 'Events', icon: CalendarDays },
-  media: { table: 'media', title: 'Event Gallery', icon: Image },
+  media: { table: 'media', title: 'Event Gallery', icon: Image, filter: (q) => q.eq('visibility', 'public') },
   meetings: { table: 'meetings', title: 'Meeting Archive', icon: CalendarDays },
   administrations: { table: 'administrations', title: 'Administrations', icon: Users },
   executives: { table: 'executives', title: 'Executive Council', icon: Users },
-  library: { table: 'documents', title: 'Digital Library', icon: BookOpen },
-  downloads: { table: 'documents', title: 'Downloads', icon: Download },
-  documents: { table: 'documents', title: 'Constitution & Policies', icon: FileText, filter: (q) => q.or('category.ilike.%constitution%,category.ilike.%policy%,category.ilike.%guideline%,category.ilike.%regulation%') },
-  news: { table: 'announcements', title: 'News & Announcements', icon: FileText },
+  library: { table: 'documents', title: 'Digital Library', icon: BookOpen, filter: (q) => q.eq('status', 'published').eq('visibility', 'public') },
+  downloads: { table: 'documents', title: 'Downloads', icon: Download, filter: (q) => q.eq('status', 'published').eq('visibility', 'public') },
+  documents: { table: 'documents', title: 'Constitution & Policies', icon: FileText, filter: (q) => q.eq('status', 'published').eq('visibility', 'public').or('category.ilike.%constitution%,category.ilike.%policy%,category.ilike.%guideline%,category.ilike.%regulation%') },
+  news: { table: 'announcements', title: 'News & Announcements', icon: FileText, filter: (q) => q.eq('published', true).or('publish_at.is.null,publish_at.lte.now()').or('expires_at.is.null,expires_at.gt.now()') },
   about: { table: 'site_settings', title: 'About NAMS', icon: Users },
   contact: { table: 'site_settings', title: 'Contact NAMS FUTA', icon: Users },
 };
@@ -36,10 +36,10 @@ export default function ArchivePage({ route }) {
         return;
       }
       let query = supabase.from(item.table).select('*');
+      if (item.filter) query = item.filter(query);
       if (route.id) query = query.eq(section === 'executives' ? 'administration_id' : 'id', route.id);
       if (route.level) query = query.eq('level', route.level);
       if (route.course) query = query.eq('course', route.course);
-      if (item.filter) query = item.filter(query);
       if (!route.id) {
         query = query.limit(60);
         if (section === 'administrations') query = query.order('start_date', { ascending: false });
