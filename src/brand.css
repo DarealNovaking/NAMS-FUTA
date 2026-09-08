@@ -1,0 +1,147 @@
+/* NAMS FUTA Digital Archive — brand, motion and visual identity layer */
+:root {
+  --nams-green-950: #032B18;
+  --nams-green-900: #062819;
+  --nams-green-800: #0B3824;
+  --nams-green-700: #145033;
+  --nams-lime: #B8EF45;
+  --nams-offwhite: #F4F6EE;
+  --nams-charcoal: #07130E;
+  --nams-muted: #738079;
+  --nams-line: rgba(7, 43, 27, .12);
+  --nams-ease: cubic-bezier(.2,.7,.2,1);
+}
+
+/* Brand mark: the approved image asset is authoritative. The text fallback is not a recreation. */
+.brand-logo {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  object-fit: contain;
+  display: block;
+  border-radius: 10px;
+}
+.brand-logo-fallback {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--nams-green-900);
+  color: var(--nams-lime);
+  font: 800 12px/1 Manrope, sans-serif;
+  letter-spacing: .08em;
+}
+
+/* Intentional motion: scientific precision, not spectacle. */
+.science-stage::after {
+  content: '';
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(184,239,69,.11), transparent 68%);
+  filter: blur(8px);
+  z-index: -1;
+  animation: nams-aura 9s ease-in-out infinite;
+}
+.orbital-one { animation: nams-orbit 24s linear infinite; }
+.orbital-two { animation: nams-orbit-reverse 31s linear infinite; }
+.node-one { animation: nams-float 8s ease-in-out infinite; }
+.node-two { animation: nams-float 10s ease-in-out -2s infinite; }
+.node-three { animation: nams-float 7s ease-in-out -4s infinite; }
+
+.archive-card,
+.quick-link,
+.announcement,
+.record-card,
+.result-row,
+.level-card,
+.status-card,
+.info-panel,
+.contact-panel {
+  transition: transform .28s var(--nams-ease), box-shadow .28s var(--nams-ease), border-color .28s ease, background-color .28s ease;
+}
+.archive-card:hover,
+.record-card:hover,
+.level-card:hover {
+  transform: translateY(-4px);
+}
+.quick-link:hover { transform: translateY(-3px); border-color: rgba(184,239,69,.42); box-shadow: 0 16px 38px rgba(3,43,24,.08); }
+.quick-link:hover svg:last-child { transform: translateX(3px); }
+.text-link svg,
+.card-arrow,
+.quick-link svg:last-child,
+.button svg { transition: transform .25s var(--nams-ease); }
+.text-link:hover svg,
+.button:hover svg { transform: translateX(3px); }
+
+.button-primary:hover { box-shadow: 0 18px 38px rgba(3,43,24,.22), 0 0 0 1px rgba(184,239,69,.16); }
+.button:active { transform: translateY(0) scale(.985); }
+
+/* Gentle route/page entrance. */
+.page-intro,
+.archive-page,
+.search-page,
+.content-page {
+  animation: nams-page-in .42s var(--nams-ease) both;
+}
+
+/* Optional progressive reveal hook for future sections/components. */
+.nams-reveal { animation: nams-reveal .65s var(--nams-ease) both; }
+
+@keyframes nams-page-in {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes nams-reveal {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes nams-aura {
+  0%, 100% { transform: scale(.94); opacity: .65; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+@keyframes nams-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -8px; }
+}
+@keyframes nams-orbit {
+  from { transform: rotate(-24deg); }
+  to { transform: rotate(336deg); }
+}
+@keyframes nams-orbit-reverse {
+  from { transform: rotate(34deg); }
+  to { transform: rotate(-326deg); }
+}
+
+/* Keep the visual system quiet on small screens and expensive devices. */
+@media (max-width: 760px) {
+  .science-stage { min-height: 390px; }
+  .science-grid { opacity: .65; background-size: 28px 28px; }
+  .orbital-one { width: 270px; height: 270px; }
+  .orbital-two { width: 330px; height: 150px; }
+  .cell-core { width: 155px; height: 155px; }
+  .cell-core span { font-size: 50px; }
+  .cell-core::after { width: 205px; height: 205px; }
+  .node-one { left: 7%; }
+  .node-two { right: 3%; }
+  .science-stage::after { width: 220px; height: 220px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (update: slow) {
+  .science-stage .orbital,
+  .science-stage .cell-node,
+  .science-stage::after { animation: none; }
+}
