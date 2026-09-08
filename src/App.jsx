@@ -57,7 +57,7 @@ export default function App() {
     <div className="ambient ambient-two" aria-hidden="true" />
     <header className="site-header">
       <a className="brand" href="/" aria-label="NAMS FUTA Digital Archive home">
-        <img className="brand-logo" src="/nams-logo.png" alt="NAMS FUTA" onError={(event) => { event.currentTarget.style.display = 'none'; event.currentTarget.nextElementSibling.hidden = false; }} />
+        <img className="brand-logo" src="/Public/MCB Class 29 official group 20260904_180458.jpg" alt="NAMS FUTA" onError={(event) => { event.currentTarget.style.display = 'none'; event.currentTarget.nextElementSibling.hidden = false; }} />
         <span className="brand-logo-fallback" hidden aria-hidden="true">NAMS</span>
         <span className="brand-copy"><strong>NAMS</strong><small>FUTA DIGITAL ARCHIVE</small></span>
       </a>
