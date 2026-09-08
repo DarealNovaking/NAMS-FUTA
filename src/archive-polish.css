@@ -1,0 +1,41 @@
+/* Public archive polish: accessibility, touch targets and resilient media presentation. */
+:focus-visible { outline: 3px solid rgba(184,239,69,.9); outline-offset: 3px; }
+button, a { -webkit-tap-highlight-color: transparent; }
+
+.archive-media-image {
+  width: 100%;
+  height: 100%;
+  min-height: 180px;
+  display: block;
+  object-fit: cover;
+  background: var(--forest-950);
+}
+.media-card { overflow: hidden; }
+.media-card .archive-media-image { aspect-ratio: 4 / 3; transition: transform .45s var(--nams-ease); }
+.media-card:hover .archive-media-image { transform: scale(1.025); }
+
+.record-file-button { border: 0; background: transparent; padding: 0; cursor: pointer; }
+.record-file-button:disabled { cursor: wait; opacity: .65; }
+
+.empty-state { min-height: 150px; }
+.spin { animation: archive-spin .9s linear infinite; }
+@keyframes archive-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 760px) {
+  .container { width: min(100% - 28px, 1180px); }
+  .archive-card { min-height: 145px; padding: 21px; }
+  .quick-link { min-height: 84px; }
+  .search-panel { padding: 30px 22px; }
+  .feature-section, .current-section, .about-section { gap: 38px; }
+  .archive-media-image { min-height: 150px; }
+}
+
+@media (hover: none) {
+  .archive-card:hover, .record-card:hover, .level-card:hover, .quick-link:hover { transform: none; }
+  .media-card:hover .archive-media-image { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin { animation: none; }
+  .media-card .archive-media-image { transition: none; }
+}
