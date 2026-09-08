@@ -6,7 +6,6 @@ const CATEGORY_IDS = {
   constitution: 'fc7b3088-919f-468b-a685-5f773ed91663',
   academic: '6562f7ac-2d52-4128-b418-03b70048e65c',
   pastQuestions: '8fc338cb-5194-40bf-b23f-f369393d3cd9',
-  projects: '7e8caf32-9535-4858-b4fb-53a93c8b0faa',
 };
 
 const config = {
@@ -20,7 +19,7 @@ const config = {
   executives: { table: 'executives', title: 'Executive Council', icon: Users },
   library: { table: 'documents', title: 'Digital Library', icon: BookOpen, filter: (q) => q.eq('status', 'published').eq('visibility', 'public') },
   downloads: { table: 'documents', title: 'Downloads', icon: Download, filter: (q) => q.eq('status', 'published').eq('visibility', 'public') },
-  documents: { table: 'documents', title: 'Constitution & Policies', icon: FileText, filter: (q) => q.eq('status', 'published').eq('visibility', 'public').in('category_id', [CATEGORY_IDS.constitution]) },
+  documents: { table: 'documents', title: 'Constitution & Policies', icon: FileText, filter: (q) => q.eq('status', 'published').eq('visibility', 'public').eq('category_id', CATEGORY_IDS.constitution) },
   news: { table: 'announcements', title: 'News & Announcements', icon: FileText, filter: (q) => q.eq('published', true).or('publish_at.is.null,publish_at.lte.now()').or('expires_at.is.null,expires_at.gt.now()') },
   about: { table: 'site_settings', title: 'About NAMS', icon: Users },
   contact: { table: 'site_settings', title: 'Contact NAMS FUTA', icon: Users },
@@ -48,14 +47,16 @@ export default function ArchivePage({ route }) {
 
       if (route.level || route.course) {
         if (item.table === 'documents') {
+          const levelTerm = String(route.level || '').trim();
+          const courseTerm = String(route.course || '').trim();
           const [levelsResult, coursesResult] = await Promise.all([
-            route.level ? supabase.from('levels').select('id,name').or(`name.ilike.%${route.level}%,code.ilike.%${route.level}%`).limit(1) : Promise.resolve({ data: [] }),
-            route.course ? supabase.from('courses').select('id,name,code').or(`name.ilike.%${route.course}%,code.ilike.%${route.course}%`).limit(1) : Promise.resolve({ data: [] }),
+            levelTerm ? supabase.from('levels').select('id,name').ilike('name', `%${levelTerm}%`).limit(1) : Promise.resolve({ data: [] }),
+            courseTerm ? supabase.from('courses').select('id,title,code').or(`title.ilike.%${courseTerm}%,code.ilike.%${courseTerm}%`).limit(1) : Promise.resolve({ data: [] }),
           ]);
-          if (route.level && levelsResult.data?.[0]) query = query.eq('level_id', levelsResult.data[0].id);
-          else if (route.level) query = query.eq('level_id', '00000000-0000-0000-0000-000000000000');
-          if (route.course && coursesResult.data?.[0]) query = query.eq('course_id', coursesResult.data[0].id);
-          else if (route.course) query = query.eq('course_id', '00000000-0000-0000-0000-000000000000');
+          if (levelTerm && levelsResult.data?.[0]) query = query.eq('level_id', levelsResult.data[0].id);
+          else if (levelTerm) query = query.eq('level_id', '00000000-0000-0000-0000-000000000000');
+          if (courseTerm && coursesResult.data?.[0]) query = query.eq('course_id', coursesResult.data[0].id);
+          else if (courseTerm) query = query.eq('course_id', '00000000-0000-0000-0000-000000000000');
         }
       }
 
@@ -94,7 +95,7 @@ function RecordCard({ row, section, Icon }) {
   return <article className="record-card"><div className="record-icon"><Icon size={19} /></div><div className="record-body"><span className="record-meta">{meta || 'Archive record'}</span><h2>{title}</h2>{description && <p>{String(description).slice(0, 180)}{String(description).length > 180 ? '…' : ''}</p>}{href !== '#' && <a className="text-link" href={href}>Open record <ArrowRight size={15} /></a>}{row.file_name && <PublicFileLink document={row} />}{row.document_id && <AttachedDocumentLink documentId={row.document_id} />}</div></article>;
 }
 
-function PublicFileLink({ document }) { const [state,setState]=useState({loading:false,url:''}); async function open(){setState({loading:true,url:''});const result=await supabase.functions.invoke('get-public-file-url',{body:{document_id:document.id,bucket:'archive-documents',path:document.file_path,expires_in:900}});if(result.error||!result.data?.url){setState({loading:false,url:''});return;}setState({loading:false,url:result.data.url});window.open(result.data.url,'_blank','noopener,noreferrer');} return <button type="button" className="text-link record-file-button" onClick={open} disabled={state.loading}>{state.loading?<><Loader2 size={14} className="spin"/> Preparing file…</>:<><Download size={14}/> Open {document.file_name}</>}</button>; }
+function PublicFileLink({ document }) { const [state,setState]=useState({loading:false}); async function open(){setState({loading:true});const result=await supabase.functions.invoke('get-public-file-url',{body:{document_id:document.id,bucket:'archive-documents',path:document.file_path,expires_in:900}});setState({loading:false});if(!result.error&&result.data?.url)window.open(result.data.url,'_blank','noopener,noreferrer');} return <button type="button" className="text-link record-file-button" onClick={open} disabled={state.loading}>{state.loading?<><Loader2 size={14} className="spin"/> Preparing file…</>:<><Download size={14}/> Open {document.file_name}</>}</button>; }
 function AttachedDocumentLink({ documentId }) { const [doc,setDoc]=useState(null); useEffect(()=>{let active=true;supabase?.from('documents').select('id,title,file_name,file_path,status,visibility').eq('id',documentId).maybeSingle().then(({data})=>{if(active)setDoc(data);});return()=>{active=false;};},[documentId]); if(!doc||doc.status!=='published'||doc.visibility!=='public')return null; return <PublicFileLink document={doc} />; }
 function LevelNotice({ level }) { return <div className="archive-notice"><BookOpen size={20} /><div><strong>{level} Level</strong><p>Browse published academic materials available for this level.</p></div></div>; }
 function CourseNotice({ course }) { return <div className="archive-notice"><FileText size={20} /><div><strong>{course}</strong><p>Course-specific archive records will appear here when available.</p></div></div>; }
