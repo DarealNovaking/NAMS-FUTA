@@ -469,3 +469,49 @@ The original 26 unindexed foreign-key findings are cleared. No existing indexes 
 2. During QA, exercise real archive queries and admin workflows, then reassess index usage.
 3. Perform final RLS policy consolidation only after authorization behavior is covered by runtime tests.
 4. Continue toward Batch 10 — Production/Netlify Readiness.
+
+
+## Batch 9 — Automated + Manual QA — 2026-10-06
+### QA scope
+- Re-read the current master handoff and repository entry points before testing.
+- Audited the production route map in src/App.jsx, package scripts/dependencies, main stylesheet imports, and admin page surface.
+- Confirmed the repository currently has no configured test/lint script and no GitHub Actions workflow.
+- Confirmed no Playwright/browser/preview runner is available in the connected toolset, so true browser rendering, responsive screenshots, keyboard traversal and upload UI execution could not be performed.
+
+### Concrete regression found and fixed
+- Batch 7 had revoked EXECUTE on public.current_role() while RLS policies still called that function directly.
+- Live impersonation as anon reproduced permission denied for function current_role during a public archive query. This was a real authorization/read regression.
+- Fixed by adding extensions.current_role() as a SECURITY DEFINER wrapper that is executable by anon/authenticated but is not exposed in the public schema, and updating all affected RLS policies to call the wrapper.
+- Kept public.current_role() non-executable by API roles, preserving the original security objective.
+- Updated the reproducible Batch 7 migration with the wrapper and policy rewrite so the fix is represented in source control.
+
+### Live authorization verification
+- Anonymous public read regression test now succeeds: 17 public archive categories are readable and the public-facing core content tables return only their currently allowed rows (all core content tables are presently empty).
+- Anonymous write protection was tested against site_settings; the transaction was rejected by RLS with new row violates row-level security policy.
+- This validates the critical public-read/admin-write boundary at the database layer after the helper-function fix.
+- Supabase security advisor still reports leaked-password protection as the only security warning plus the expected multiple-permissive-policy findings; no new helper-function exposure finding was introduced.
+- Supabase performance advisor remains at the expected unused-index notices; Batch 8's unindexed-FK finding remains cleared.
+
+### Static application QA
+- package.json contains vite build as the production build command, but there is no test/lint command.
+- src/App.jsx route handling covers the declared public routes plus dynamic academic, past-question, event, meeting, executive and news paths; /search intentionally falls through to SearchPage.
+- Main entry imports the expected global/feature CSS files.
+- Admin directory contains the expected login/dashboard/module/document/handover/settings/activity/admin-management surfaces.
+- No verified browser runtime build was claimed because the repository cannot be executed through the current connected toolset.
+
+### Remaining QA blockers
+- Browser QA is still required: public navigation, every archive detail route, admin login/session expiry, CRUD create/edit/delete, modal keyboard behavior, file uploads/replacements/deletions, signed downloads/media, mobile breakpoints, accessibility tree, loading/error/empty/success states.
+- A local/CI npm run build should be executed before production release when a runnable environment is available.
+- Automated tests/CI should be added or configured before release if the project is expected to have ongoing multi-administration maintenance.
+- Auth leaked-password protection remains a user dashboard action from Batch 7.
+- Final RLS policy consolidation remains pending; the current architecture is intentionally left behaviorally stable until browser authorization tests are available.
+
+### Resulting state
+Batch 9 database/static QA: PARTIALLY COMPLETE — critical regression found and fixed; browser/runtime QA remains blocked by tooling.
+No unverified claim of browser test success was made.
+
+### Next steps
+1. User enables leaked-password protection.
+2. Obtain/run a browser-capable QA environment and execute the remaining UI matrix.
+3. Batch 10 — Production/Netlify Readiness, including build/deploy configuration and environment-variable review.
+4. Revisit final RLS policy consolidation after browser authorization evidence.
