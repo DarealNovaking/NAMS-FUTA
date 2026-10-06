@@ -58,7 +58,7 @@ export default function AdminModulePage({module}){
     return()=>document.removeEventListener('keydown',onKeyDown);
   },[show,saving]);
   const filtered=useMemo(()=>{const needle=query.trim().toLowerCase();if(!needle)return rows;return rows.filter((row)=>Object.values(row).join(' ').toLowerCase().includes(needle));},[rows,query]);
-  function edit(row){setEditing(row);setForm(Object.fromEntries((cfg.fields||[]).map(([name,,type])=>[name,type==='array'?(Array.isArray(row[name])?row[name].join(', '):row[name]||''):(row[name]??'')]));setFiles({});setShow(true);}
+  function edit(row){setEditing(row);const nextForm=Object.fromEntries((cfg.fields||[]).map(([name,,type])=>[name,type==='array'?(Array.isArray(row[name])?row[name].join(', '):row[name]||''):(row[name]??'')]));setForm(nextForm);setFiles({});setShow(true);}
   function create(){setEditing(null);setForm(emptyFor(cfg));setFiles({});setShow(true);setError('');}
   function change(event){const{name,type,checked,value,files:inputFiles}=event.target;if(type==='file'){setFiles((current)=>({...current,[name]:inputFiles?.[0]||null}));return;}setForm((current)=>({...current,[name]:type==='checkbox'?checked:value}));}
   async function writeActivity(action,resourceId,metadata={}){if(!supabase||!profile?.id)return;const result=await supabase.from('activity_logs').insert({user_id:profile.id,action,resource_type:table,resource_id:resourceId,metadata});if(result.error)console.warn('Activity log failed:',result.error.message);}
