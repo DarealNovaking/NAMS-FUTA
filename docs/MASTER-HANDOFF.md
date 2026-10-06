@@ -562,3 +562,35 @@ Expected Pages URL:
 2. User tests the deployed public/admin flows and reports any failures.
 3. Continue Batch 9 with browser/runtime evidence and defect fixes.
 4. Complete production-readiness work before final release.
+
+
+## GitHub Pages deployment debugging — 2026-10-06
+
+### Failure reproduced
+- After the user switched Settings → Pages → Source to GitHub Actions, the existing deployment workflow was triggered by the latest push.
+- Latest run #5 for commit a4bbfd11ff4a9b735d6129de284440fa829d9b1f completed with failure.
+- GitHub Actions job inspection showed the build job failed specifically at Setup Node.js; dependency installation, Vite build, Pages artifact upload, and deployment were never reached.
+- Repository is now public, confirmed by the workflow run metadata.
+
+### Root cause and fix
+- The workflow used actions/setup-node@v4 with cache: npm while the repository has no package-lock.json.
+- Removed the npm cache requirement from .github/workflows/deploy.yml, keeping Node 20 and npm install.
+- This is the smallest safe CI fix; deterministic lockfile adoption remains recommended before final production release.
+
+### Affected file
+- .github/workflows/deploy.yml
+
+### Verification
+- Inspected the actual failed GitHub Actions run and job steps through GitHub.
+- Confirmed failure occurred before npm install and before npm run build.
+- Updated workflow and committed as 3dd2861fc024279c5045c17cf7416b25ea607ccf.
+- The new commit should trigger a fresh Pages workflow automatically.
+
+### User action
+- No code action required. Open Actions → Deploy NAMS FUTA to GitHub Pages and monitor the newest run.
+- If the new run is green, open the Pages URL and begin browser QA.
+
+### Current status
+- GitHub Pages source: GitHub Actions.
+- Deployment: not yet verified successful after the CI fix.
+- Browser QA: still pending until a successful deployment is available.
