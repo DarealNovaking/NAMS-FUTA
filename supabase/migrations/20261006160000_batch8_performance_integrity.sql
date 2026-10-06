@@ -24,6 +24,7 @@ create index if not exists membership_records_level_id_idx on public.membership_
 create index if not exists membership_records_session_id_idx on public.membership_records (session_id);
 create index if not exists membership_records_user_id_idx on public.membership_records (user_id);
 create index if not exists projects_document_id_idx on public.projects (document_id);
+create index if not exists projects_level_id_idx on public.projects (level_id);
 create index if not exists site_settings_updated_by_idx on public.site_settings (updated_by);
 create index if not exists website_files_uploaded_by_idx on public.website_files (uploaded_by);
 
