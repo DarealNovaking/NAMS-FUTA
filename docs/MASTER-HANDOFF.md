@@ -385,3 +385,44 @@ Next: Batch 6 — Admin UX + Accessibility.
 - Confirmed there is no GitHub Actions workflow currently present in `.github/workflows`.
 - No schema, auth policy, storage, or dependency changes were made.
 - Browser/Playwright is unavailable in the current connected toolset, so keyboard/focus/responsive behavior cannot yet be runtime-verified.
+
+
+## Batch 7 — Security Hardening — 2026-10-06
+### Changes made
+- Re-audited the live Supabase security posture before changing anything.
+- Revoked EXECUTE for anonymous/public and authenticated callers on the internal public.current_role() and public.handle_new_user() helper functions. These remain available to the database/security-definer/trigger execution paths that require them, but are no longer exposed as callable public RPC functions.
+- Moved the pg_trgm extension from the exposed public schema into the non-exposed extensions schema.
+- Updated RLS policies for alumni, projects, download logs and documents to use the Supabase (select auth.uid()) initialization-plan pattern where applicable.
+- Added the corresponding reproducible migration at supabase/migrations/20261006150000_batch7_security_hardening.sql.
+- Re-ran the Supabase security advisor after the changes.
+
+### Affected files / services
+- supabase/migrations/20261006150000_batch7_security_hardening.sql
+- Live Supabase PostgreSQL/RLS configuration for the NAMS project.
+
+### Verification
+- Before remediation, live inspection confirmed both helper functions were SECURITY DEFINER and had EXECUTE granted to PUBLIC, anon and authenticated.
+- After remediation, the functions no longer appear as security-advisor findings and the pg_trgm extension reports schema extensions.
+- Security advisor now reports only one remaining warning: auth_leaked_password_protection (Supabase Auth leaked-password protection is disabled).
+- The performance advisor no longer reports the previous auth_rls_initplan finding for documents/alumni/projects/download logs.
+- The performance advisor still reports 26 unindexed foreign keys and unused-index notices; those are intentionally deferred to Batch 8 rather than mixed into this security batch.
+- Browser/Playwright remains unavailable, so browser-level authorization and upload regression testing remains pending Batch 9.
+
+### Remaining security issue / required user action
+**User action is required before production release:** enable Supabase Auth leaked-password protection in the NAMS project's Authentication/password-security settings. This is a dashboard-level Auth configuration and is not safely changed by the database SQL interface used here.
+Exact next step: open the NAMS Supabase project → Authentication → Password Security → enable Leaked Password Protection, then confirm the setting is enabled.
+
+### Security scope intentionally deferred
+- Multiple permissive SELECT-policy advisor notices remain because the existing policy architecture combines public-read policies with broad admin ALL policies. No blanket policy rewrite was performed in this batch because changing policy roles/commands without browser/auth regression tests risks altering legitimate public/admin behavior. This should be addressed as part of the final RLS review/release gate.
+- Server-side content/MIME validation for uploaded files still needs a dedicated implementation review.
+- Public get-public-file-url / get-public-media-url functions intentionally keep JWT verification disabled for public archive delivery; their body-level record/path authorization was previously hardened in Batch 3 and remains subject to end-to-end testing in Batch 9.
+
+### Resulting state
+Batch 7 targeted security hardening: IMPLEMENTED and verified against live Supabase.
+Production release remains blocked until leaked-password protection is enabled and remaining RLS/upload/browser checks are completed.
+
+### Next steps
+1. User enables leaked-password protection in Supabase Auth.
+2. Batch 8 — Database Performance + Integrity.
+3. Batch 9 — Automated + Manual QA, including browser authorization/upload tests when a browser tool is available.
+4. Final RLS simplification/release gate after QA evidence.
