@@ -13,7 +13,7 @@ const routes = {
   '/gallery': { title: 'Event Gallery', section: 'media' }, '/meetings': { title: 'Meeting Archive', section: 'meetings' },
   '/executives': { title: 'Executive Council', section: 'executives' }, '/administrations': { title: 'Administrations', section: 'administrations' },
   '/library': { title: 'Digital Library', section: 'library' }, '/downloads': { title: 'Downloads', section: 'downloads' },
-  '/news': { title: 'News & Announcements', section: 'news' }, '/contact': { title: 'Contact NAMS FUTA', section: 'contact' },
+  '/news': { title: 'News & Announcements', section: 'news' }, '/reports': { title: 'Annual Reports', section: 'reports' }, '/financial-records': { title: 'Financial Records', section: 'financial-records' }, '/handover-notes': { title: 'Handover Notes', section: 'handover-notes' }, '/alumni': { title: 'Alumni Directory', section: 'alumni' }, '/contact': { title: 'Contact NAMS FUTA', section: 'contact' },
 };
 
 function getRoute(pathname) {
