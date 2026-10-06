@@ -310,3 +310,38 @@ No immediate user action is required. Administrators will need to populate sessi
 ### Resulting state
 Batch 4 public archive completion: COMPLETE for core taxonomy/routes.
 Next: Batch 5 — Homepage + Brand Completion.
+
+
+## Batch 5 — Homepage + Brand Completion — 2026-10-06
+### Changes made
+- Kept the existing NAMS visual system and restrained microbiology motion; no new animation dependency or 3D rewrite was introduced.
+- Made the homepage consume the live `site_identity` setting for the institution name/title and tagline, with safe fallbacks.
+- Expanded the homepage repository overview from six to eight archive areas so Alumni/Community and Downloads/Website Files are represented alongside the existing core areas.
+- Added a clear repository-level CTA and a continuity statement reinforcing the archive's multi-administration purpose.
+- Improved the search shortcut label to communicate both Mac and Windows/Linux conventions.
+- Preserved the required TEAM NEXUS footer hierarchy and existing official logo asset path.
+
+### Affected files
+- `src/pages/HomePage.jsx`
+- `src/homepage-polish.css` (new)
+- `src/main.jsx`
+- `docs/MASTER-HANDOFF.md`
+
+### Verification
+- Re-read the current homepage, app shell, brand layer, route styles, and package manifest from GitHub before editing.
+- Confirmed the official logo asset exists at `Public/MCB Class 29 official group 20260904_180458.jpg`.
+- Confirmed the existing brand layer already provides restrained scientific motion, responsive scaling and `prefers-reduced-motion` handling.
+- Confirmed Supabase project status is `ACTIVE_HEALTHY`.
+- No database schema or storage changes were required.
+- Browser/Playwright execution is still unavailable in the connected toolset; visual/responsive browser verification remains pending Batch 9.
+
+### Blockers / risks
+- The homepage can only display real administration/news content after administrators populate and publish the corresponding records; the current empty-state behavior is intentional.
+- The repository currently has a Three.js dependency, but the homepage's existing scientific visual is CSS-based. Batch 5 deliberately avoids introducing an unnecessary runtime 3D scene.
+
+### User action
+No immediate user action is required.
+
+### Resulting state
+Batch 5 homepage/brand completion: IMPLEMENTED.
+Next: Batch 6 — Admin UX + Accessibility.
