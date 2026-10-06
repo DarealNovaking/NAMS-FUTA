@@ -594,3 +594,16 @@ Expected Pages URL:
 - GitHub Pages source: GitHub Actions.
 - Deployment: not yet verified successful after the CI fix.
 - Browser QA: still pending until a successful deployment is available.
+
+## GitHub Pages build failure — AdminModulePage syntax fix — 2026-10-06
+
+- Run #8 (`37493375055`) was inspected directly through GitHub Actions logs.
+- CI infrastructure is healthy: checkout, Node 20 setup, dependency installation, and Vite startup all succeeded; `npm install` added 75 packages and reported 0 vulnerabilities.
+- Build failed at `src/pages/admin/AdminModulePage.jsx:61:202` with esbuild `Expected ")" but found ";"`.
+- Root cause: the `edit()` handler had an unmatched closing parenthesis around `setForm(Object.fromEntries(...))`.
+- Fixed the handler by computing `nextForm` separately and then calling `setForm(nextForm)`.
+- Affected file: `src/pages/admin/AdminModulePage.jsx`.
+- Fix commit: `9d2326528ec3665050621d00f77daf057f43ceef`.
+- Verification performed: exact CI failure reproduced from GitHub Actions logs and offending source line inspected; fix committed. A fresh Pages workflow should trigger from the fix commit.
+- Current status: deployment still not verified successful; browser QA remains blocked until a green Pages deployment exists.
+- User action: none yet; wait for the new workflow run and report whether it is green or red.
