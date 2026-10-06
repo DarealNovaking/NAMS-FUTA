@@ -359,3 +359,28 @@ Next: Batch 6 — Admin UX + Accessibility.
 - Re-read `AdminSettings.jsx` to confirm `footer_credits` is an existing managed setting.
 - Re-read the updated `src/App.jsx` from GitHub after the change.
 - No browser automation is available; runtime rendering remains pending Batch 9.
+
+
+## Batch 6 — Admin UX + Accessibility — 2026-10-06
+### Changes made
+- Added an explicit accessible title to the admin login page.
+- Marked the dashboard module search area as a search landmark and corrected its keyboard shortcut label to support Mac and Windows/Linux.
+- Added modal dialog semantics to the generic admin CRUD form.
+- Added Escape-to-close behavior and a keyboard focus trap for CRUD modals, preventing Tab navigation from escaping into the page behind the dialog.
+- Added initial modal focus handling and stronger visible focus states for admin controls.
+- Increased action-button and form-control touch targets for mobile usability.
+- Added mobile table overflow handling and a single-column module layout for narrow screens.
+- Kept the existing admin architecture, Supabase flows and storage rules unchanged.
+
+### Affected files
+- `src/pages/admin/AdminLogin.jsx`
+- `src/pages/admin/AdminDashboard.jsx`
+- `src/pages/admin/AdminModulePage.jsx`
+- `src/admin.css`
+- `docs/MASTER-HANDOFF.md`
+
+### Verification
+- Re-read all principal admin surfaces and current admin CSS from GitHub before editing.
+- Confirmed there is no GitHub Actions workflow currently present in `.github/workflows`.
+- No schema, auth policy, storage, or dependency changes were made.
+- Browser/Playwright is unavailable in the current connected toolset, so keyboard/focus/responsive behavior cannot yet be runtime-verified.
