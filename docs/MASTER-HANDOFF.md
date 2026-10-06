@@ -268,3 +268,45 @@ No immediate user action is required.
 ### Resulting state
 Batch 3 lifecycle hardening: COMPLETE for public delivery and download logging.
 Next: Batch 4 — Public Archive Completion.
+
+
+## Batch 4 — Public Archive Completion — 2026-10-06
+### Changes made
+- Reconciled the public archive taxonomy with the live archive_categories table instead of relying on hard-coded category UUIDs for academic and past-question browsing.
+- Added data-driven category-slug filtering for Constitution/Policies, Academic Resources, Past Questions, Annual Reports, Financial Records and Handover Notes.
+- Added public Alumni Directory browsing using the existing public alumni table and visibility field.
+- Added public routes for /reports, /financial-records, /handover-notes and /alumni.
+- Made administration listing records open their executive-council detail route (/executives/:administrationId) so the administration/session -> executive list relationship is navigable.
+- Corrected the homepage current-administration query to use the live session_id relationship and sessions(name) rather than the stale non-existent administrations.session field.
+
+### Affected files
+- src/App.jsx
+- src/pages/ArchivePage.jsx
+- src/pages/HomePage.jsx
+- docs/MASTER-HANDOFF.md
+
+### Live archive reconciliation
+- archive_categories contains 17 public categories including Constitution, Academic Resources, Policies, Executive Council, Past Questions, Minutes, Project Library, Events, Reports, Financial Records, Media Gallery, Alumni, Handover Notes, Membership Records, Downloads and Website Files.
+- At the time of this batch, the core public content tables are empty: documents 0, projects 0, events 0, media 0, meetings 0, administrations 0, executives 0, announcements 0. The UI therefore correctly renders empty-state messaging rather than fabricated records.
+
+### Verification
+- Re-read all modified GitHub files after each update.
+- Reconciled category slugs against live PostgreSQL category records.
+- Reconciled homepage administration/session query against live table columns and foreign keys.
+- Confirmed no database migration was required.
+- Browser/Playwright execution is unavailable through the connected toolset; responsive and end-to-end browser verification remains pending Batch 9.
+
+### Remaining public-archive gaps
+- Search still depends on the existing search_public_documents RPC and does not yet include alumni/media/announcements as searchable resource types.
+- /downloads?category=... does not currently apply a query-string category filter; dedicated category routes now exist for reports/financial/handover records.
+- Public meeting detail currently exposes attached published documents but does not yet present document-type labels/order in the UI.
+- Media display currently renders images through the public media function; video playback/download presentation needs a dedicated UX pass.
+- Public alumni/session filtering and richer executive profile/appointment/portfolio presentation remain candidates for later product polish.
+- RLS/security findings from Batch 1 remain scheduled for Batch 7; no broad security-policy rewrite was introduced in Batch 4.
+
+### User action
+No immediate user action is required. Administrators will need to populate sessions/courses and publish archive records before these public sections contain live content.
+
+### Resulting state
+Batch 4 public archive completion: COMPLETE for core taxonomy/routes.
+Next: Batch 5 — Homepage + Brand Completion.
