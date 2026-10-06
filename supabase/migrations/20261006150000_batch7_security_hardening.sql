@@ -34,3 +34,50 @@ using (
     or ("current_role"() = any (array['admin'::app_role, 'super_admin'::app_role]))
   )
 );
+
+
+-- RLS policies need a callable helper, but it must not be exposed as a public RPC.
+-- Keep the original SECURITY DEFINER helper non-executable by API roles and expose
+-- only an unlisted-schema wrapper to the RLS policy engine.
+create or replace function extensions.current_role()
+returns public.app_role
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.current_role();
+$$;
+
+revoke all on function extensions.current_role() from public;
+grant execute on function extensions.current_role() to anon, authenticated;
+
+do $$
+declare
+  p record;
+  u text;
+  w text;
+  sql text;
+begin
+  for p in
+    select tablename, policyname, qual, with_check
+    from pg_policies
+    where schemaname = 'public'
+      and (qual like '%current_role%' or with_check like '%current_role%')
+  loop
+    u := case
+      when p.qual is null then null
+      else replace(p.qual, '"current_role"()', 'extensions.current_role()')
+    end;
+    w := case
+      when p.with_check is null then null
+      else replace(p.with_check, '"current_role"()', 'extensions.current_role()')
+    end;
+
+    sql := format('alter policy %I on public.%I', p.policyname, p.tablename);
+    if u is not null then sql := sql || format(' using (%s)', u); end if;
+    if w is not null then sql := sql || format(' with check (%s)', w); end if;
+    execute sql;
+  end loop;
+end
+$$;
