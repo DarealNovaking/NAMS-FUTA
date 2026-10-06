@@ -123,3 +123,65 @@ Update this file after every meaningful implementation/audit batch with:
 - required user actions
 - next steps
 - resulting commit/state
+
+
+## Batch 1 live Supabase audit — 2026-10-06
+Supabase is now ACTIVE_HEALTHY; the database is reachable and the live audit was completed.
+
+### Live schema verified
+- Public archive schema is present and RLS is enabled on the exposed public tables.
+- Core entities verified include profiles, archive categories, levels, courses, sessions, semesters, documents, projects, administrations, executives, meetings, meeting/event document relationships, events, media, alumni, membership records, announcements, activity logs, download logs, handover records, site settings and website files.
+- Storage buckets are private. Verified buckets include archive-documents (50 MB), avatars, event-media, executive-photos, gallery, project-files and website-files.
+- Storage object policies currently restrict the listed archive buckets to active admin/super-admin roles through the database role helper.
+- Database migrations are present through 20260907235329_finalize_nams_storage_and_security.
+
+### Live security findings
+1. HIGH PRIORITY: public.current_role() is a SECURITY DEFINER function in the exposed public schema and is executable by anonymous/authenticated roles. It reads active profile roles and is used by RLS policies. Its privilege surface should be reduced; it should not be an unrestricted public RPC.
+2. HIGH PRIORITY: public.handle_new_user() is also SECURITY DEFINER and executable by anonymous/authenticated roles. It is a trigger helper and should not be exposed as a callable public RPC.
+3. Supabase security advisor reports pg_trgm installed in the public schema. Move the extension to a non-exposed schema where compatible.
+4. Supabase Auth leaked-password protection is disabled and should be enabled before production.
+5. Several tables have multiple permissive SELECT policies because admin-management policies use broad ALL plus separate public-read policies. This is flagged by the advisor and should be simplified to explicit command-specific policies so the authorization model is easier to audit.
+6. Storage buckets remain private, matching the product requirement.
+7. The admin-account-management Edge Function is ACTIVE and JWT verification is enabled. Its server-side caller check validates the bearer token with Supabase Auth, requires an active admin/super-admin profile, restricts super-admin creation/assignment to super-admin callers, and globally signs out an admin when deactivated.
+8. Public URL Edge Functions get-public-file-url and get-public-media-url have JWT verification disabled and require a dedicated security review of their function-body authorization before release.
+
+### Live performance findings
+- Supabase performance advisor reports 26 unindexed foreign keys across the archive schema.
+- RLS policies on documents/projects/alumni/download_logs use auth calls in a way that can trigger per-row re-evaluation; these should be changed to the (select auth.uid()) pattern where applicable.
+- Additional advisor findings include unused-index notices that should be reviewed after the archive has representative data; do not remove indexes blindly.
+- The schema should receive targeted FK/index hardening in Batch 8 rather than ad-hoc indexing.
+
+### Batch 1 gap matrix
+| Area | State | Action |
+|---|---|---|
+| Supabase availability | Healthy | Complete |
+| Core archive schema | Present | Reconcile with admin UI in Batch 2 |
+| RLS enabled | Yes on public tables | Simplify/audit policies in Batch 7 |
+| Storage buckets | Private | Keep; verify each bucket lifecycle in Batch 3 |
+| Storage object authorization | Admin-gated | Test signed/public access paths in Batch 3/7 |
+| Admin account Edge Function | JWT + role checks | Keep; harden CORS and audit edge cases |
+| Public URL Edge Functions | JWT disabled | Inspect and harden before release |
+| Security advisor | Findings present | Remediate in Batch 7 |
+| Performance advisor | 26 FK index findings + RLS initplan findings | Remediate in Batch 8 |
+| Admin CMS coverage | Incomplete | Batch 2 |
+| Browser QA | Not yet run | Batch 9 |
+
+## Batch 1 verification
+- Supabase project status verified as ACTIVE_HEALTHY.
+- Live table/column/foreign-key/RLS state inspected.
+- Live PostgreSQL policies inspected.
+- Storage buckets and storage.objects policies inspected.
+- Database SECURITY DEFINER functions inspected.
+- admin-account-management Edge Function inspected; JWT verification confirmed enabled.
+- Supabase security and performance advisors executed.
+- No production schema mutation was performed during this audit.
+
+## Batch 1 blockers / user action
+- No immediate user action is required to continue.
+- Production release is blocked until the identified security findings are remediated and verified.
+- Before enabling any public/member login in future versions, authorization claims and RLS must be re-audited.
+
+## Resulting state
+- Batch 1 live audit: COMPLETE.
+- Next batch: Batch 2 — Finish Admin CMS.
+- The next implementation should first reconcile the live schema with the existing admin modules and close missing management surfaces without introducing unnecessary migrations.
