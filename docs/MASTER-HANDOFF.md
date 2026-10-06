@@ -426,3 +426,46 @@ Production release remains blocked until leaked-password protection is enabled a
 2. Batch 8 — Database Performance + Integrity.
 3. Batch 9 — Automated + Manual QA, including browser authorization/upload tests when a browser tool is available.
 4. Final RLS simplification/release gate after QA evidence.
+
+
+## Batch 8 — Database Performance + Integrity — 2026-10-06
+### Changes made
+- Audited the live PostgreSQL foreign keys, indexes, table statistics and index scan counters before changing the schema.
+- Added targeted covering indexes for previously unindexed foreign keys across activity logs, administrations, alumni, announcements, archive categories, courses, documents, downloads, event/meeting documents, events, handovers, media, meetings, membership records, projects, site settings and website files.
+- Added a standalone projects(level_id) index after the Supabase advisor identified that the existing (session_id, level_id) composite index did not satisfy standalone foreign-key coverage.
+- Refreshed planner statistics with ANALYZE on the principal archive tables.
+- Added the reproducible migration supabase/migrations/20261006160000_batch8_performance_integrity.sql.
+- Deliberately did not remove unused indexes: all core content tables currently have zero rows and index scan counters therefore do not represent production workload.
+- Deliberately did not add speculative CHECK/UNIQUE constraints to historical/editorial fields without first defining the intended archive rules.
+
+### Affected files / services
+- supabase/migrations/20261006160000_batch8_performance_integrity.sql
+- Live Supabase PostgreSQL indexes/statistics for the NAMS project.
+
+### Verification
+- Initial performance advisor reported 26 unindexed foreign keys.
+- After the index pass and final projects(level_id) index, the unindexed-foreign-key advisor finding is cleared.
+- The advisor now reports unused-index notices plus the existing multiple-permissive-RLS-policy warning; unused indexes are expected while the archive has no representative data.
+- Live table statistics confirmed core archive tables are still at zero rows.
+- Planner statistics were refreshed with ANALYZE.
+- Browser/Playwright remains unavailable; database-level performance work was verified through live PostgreSQL/advisor inspection.
+
+### Remaining issues
+- The performance advisor still reports 67 unused indexes. These should not be dropped yet because the archive is empty/pre-production; revisit after representative data and real browsing/admin traffic exist.
+- Multiple permissive RLS policies remain and should be consolidated during the final RLS/security release review, with browser authorization regression tests.
+- Auth leaked-password protection from Batch 7 still requires dashboard configuration by the user.
+- More domain-specific integrity constraints may be appropriate after editorial workflows are populated and tested.
+
+### User action
+No new action is required for Batch 8.
+Previously requested action remains: enable Supabase Auth -> Password Security -> Leaked Password Protection.
+
+### Resulting state
+Batch 8 database performance hardening: IMPLEMENTED and live-verified.
+The original 26 unindexed foreign-key findings are cleared. No existing indexes were deleted.
+
+### Next steps
+1. Batch 9 — Automated + Manual QA.
+2. During QA, exercise real archive queries and admin workflows, then reassess index usage.
+3. Perform final RLS policy consolidation only after authorization behavior is covered by runtime tests.
+4. Continue toward Batch 10 — Production/Netlify Readiness.
