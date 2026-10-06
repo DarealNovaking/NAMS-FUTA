@@ -607,3 +607,15 @@ Expected Pages URL:
 - Verification performed: exact CI failure reproduced from GitHub Actions logs and offending source line inspected; fix committed. A fresh Pages workflow should trigger from the fix commit.
 - Current status: deployment still not verified successful; browser QA remains blocked until a green Pages deployment exists.
 - User action: none yet; wait for the new workflow run and report whether it is green or red.
+
+
+## GitHub Pages Run #10 — second AdminModulePage syntax fix — 2026-10-06
+
+- Run #10 (`37493777636`) reached the Vite production build successfully; CI checkout, Node 20, and `npm install` all passed.
+- Build failed at `src/pages/admin/AdminModulePage.jsx:74:44` with `Expected ";" but found ")"`.
+- Root cause: the file-field loop used assignment-style destructuring (`for(const[name,,type,,bucket]=cfg.fields)`) instead of iterating with `of`.
+- Fixed to `for(const[name,,type,,bucket] of cfg.fields)`.
+- Affected file: `src/pages/admin/AdminModulePage.jsx`.
+- Fix commit: `261835d3de851ce3e31ebf461f12c026c9919d7b`.
+- Verification: inspected the exact CI error and source lines; corrected the offending syntax. Fresh Pages workflow should trigger automatically.
+- Current status: deployment not yet verified successful; browser QA remains pending.
