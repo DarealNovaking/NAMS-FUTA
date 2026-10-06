@@ -185,3 +185,49 @@ Supabase is now ACTIVE_HEALTHY; the database is reachable and the live audit was
 - Batch 1 live audit: COMPLETE.
 - Next batch: Batch 2 — Finish Admin CMS.
 - The next implementation should first reconcile the live schema with the existing admin modules and close missing management surfaces without introducing unnecessary migrations.
+
+
+## Batch 2 — Admin CMS completion — 2026-10-06
+### Changes made
+- Expanded the generic admin CMS with management for archive categories, academic levels, courses, academic sessions, semesters and website files.
+- Added these modules to the administrator dashboard under a dedicated Archive structure group.
+- Added website-file upload support using the existing private `website-files` bucket with a 50 MB client-side limit and restricted MIME allowlist.
+- Preserved the existing activity-log mechanism and administrator-authenticated writes.
+- Added live-schema-aware ordering because levels, sessions and semesters do not all expose `created_at`.
+- Prevented an archive category from selecting itself as its parent in the edit form.
+- No database migration was required.
+
+### Affected files
+- `src/pages/admin/AdminModulePage.jsx`
+- `src/pages/admin/AdminDashboard.jsx`
+- `docs/MASTER-HANDOFF.md`
+
+### Live data reconciliation
+- `archive_categories`: 17 records
+- `levels`: 5 records
+- `courses`: 0 records
+- `sessions`: 0 records
+- `semesters`: 2 records
+- `website_files`: 0 records
+
+The empty courses/sessions/website-files tables are expected to be populated by future administrators; the new CMS surfaces are now available for that handover workflow.
+
+### Verification
+- Re-read the modified GitHub files after each sequential update.
+- Reconciled the new module fields against live PostgreSQL column definitions.
+- Verified the target tables exist and queried live record counts.
+- Confirmed no schema mutation was needed.
+- Playwright/browser execution is not available through the connected toolset, so responsive/browser regression testing remains pending for the dedicated QA batch.
+
+### Remaining Batch 2 work / gaps
+- Specialized executive management still does not expose appointment letters, portfolios or attendance as first-class admin relationships; these can be represented through documents today but should receive a more deliberate CMS workflow.
+- Meeting management does not yet provide attendance/notice/agenda/minutes/resolution editing as a single workflow; relationship managers exist for meeting documents.
+- Constitution/policy taxonomy is now manageable through categories/documents, but dedicated editorial presets may improve future-admin usability.
+- These are product/CMS workflow gaps, not missing database primitives.
+
+### User action
+No immediate user action is required. Future administrators will need to populate courses and academic sessions before academic classification can be fully useful.
+
+### Resulting state
+Batch 2 core CMS structure: **implemented**.
+Next: **Batch 3 — Document + Media Lifecycle**.
