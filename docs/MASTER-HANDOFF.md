@@ -515,3 +515,50 @@ No unverified claim of browser test success was made.
 2. Obtain/run a browser-capable QA environment and execute the remaining UI matrix.
 3. Batch 10 — Production/Netlify Readiness, including build/deploy configuration and environment-variable review.
 4. Revisit final RLS policy consolidation after browser authorization evidence.
+
+
+## GitHub Pages deployment preparation — 2026-10-06
+
+### Changes made
+- Added `vite.config.js` with React plugin and `base: '/NAMS-FUTA/'` for project Pages hosting.
+- Added `.github/workflows/deploy.yml` to build and publish `dist` through GitHub Pages on pushes to `main` and manual workflow dispatch.
+- Updated `src/App.jsx` to normalize the GitHub Pages repository subpath and preserve the existing custom client-side routing/navigation model.
+- Updated the brand logo asset path to use the Vite base URL.
+- Updated `index.html` to keep the standard Vite source entry portable.
+- The workflow uses `npm install` because the repository currently has no `package-lock.json`; `npm ci` would fail without a lockfile.
+
+### Affected files
+- `vite.config.js`
+- `.github/workflows/deploy.yml`
+- `src/App.jsx`
+- `index.html`
+
+### Verification
+- GitHub repository state inspected before changes.
+- Confirmed `package.json` exposes `npm run build` and the React/Vite dependencies required by the workflow.
+- Confirmed no `vite.config.*` existed before this deployment setup.
+- Confirmed no existing GitHub Actions workflow existed before this setup.
+- Confirmed deployment workflow syntax/content and repository paths after writing.
+- Browser/runtime verification and actual GitHub Pages build are still pending; this environment has no browser/Playwright runner and no repository lockfile.
+
+### User action required
+1. Open the repository on GitHub.
+2. Go to **Settings → Pages**.
+3. Under **Build and deployment**, set **Source** to **GitHub Actions**.
+4. Open **Actions → Deploy NAMS FUTA to GitHub Pages** and wait for the workflow to finish.
+5. Then open the deployed Pages URL and begin Batch 9 browser QA.
+
+Expected Pages URL:
+`https://darealnovaking.github.io/NAMS-FUTA/`
+
+### Current blockers / risks
+- No `package-lock.json`: deployment uses `npm install` rather than deterministic `npm ci`. A lockfile should be introduced before final production release.
+- GitHub Pages browser QA is still pending.
+- Supabase leaked-password protection still requires manual enablement.
+- Public SPA routing and all deep links must be verified from the deployed site.
+
+### Next steps
+1. User enables GitHub Pages → GitHub Actions and waits for the deployment workflow.
+2. User tests the deployed public/admin flows and reports any failures.
+3. Continue Batch 9 with browser/runtime evidence and defect fixes.
+4. Complete production-readiness work before final release.
