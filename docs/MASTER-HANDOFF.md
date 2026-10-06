@@ -345,3 +345,17 @@ No immediate user action is required.
 ### Resulting state
 Batch 5 homepage/brand completion: IMPLEMENTED.
 Next: Batch 6 — Admin UX + Accessibility.
+
+
+### Batch 5 follow-up — public footer settings
+- Wired the existing `site_settings.footer_credits` record into the global public footer.
+- Preserved the required TEAM NEXUS heading and the existing attribution text as fallbacks, so an unset/partial configuration cannot blank the credits.
+- No schema change was required.
+
+### Additional affected file
+- `src/App.jsx`
+
+### Verification
+- Re-read `AdminSettings.jsx` to confirm `footer_credits` is an existing managed setting.
+- Re-read the updated `src/App.jsx` from GitHub after the change.
+- No browser automation is available; runtime rendering remains pending Batch 9.
