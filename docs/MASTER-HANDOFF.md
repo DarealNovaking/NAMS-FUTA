@@ -231,3 +231,40 @@ No immediate user action is required. Future administrators will need to populat
 ### Resulting state
 Batch 2 core CMS structure: **implemented**.
 Next: **Batch 3 — Document + Media Lifecycle**.
+
+
+## Batch 3 — Document + Media Lifecycle — 2026-10-06
+### Changes made
+- Audited the complete private-storage delivery path for archive documents and public media.
+- Hardened get-public-file-url to accept only the archive-documents bucket, verify the document is published/public and that the requested path exactly matches the database record, and create a short-lived signed URL.
+- Added server-side download logging for public document URL issuance through download_logs.
+- Hardened get-public-media-url so record types map to their intended buckets: media images to gallery, media videos to event-media, executives to executive-photos, and event cover images to event-media.
+- Preserved publication/visibility checks and exact path matching for public media.
+- Kept all relevant buckets private; public access remains controlled through short-lived signed URLs.
+
+### Affected files / services
+- Supabase Edge Function: get-public-file-url version 2
+- Supabase Edge Function: get-public-media-url version 2
+- src/pages/ArchivePage.jsx remains the public consumer of the document delivery contract.
+- docs/MASTER-HANDOFF.md
+
+### Verification
+- Inspected live Storage bucket inventory and storage.objects authorization policies.
+- Inspected both public URL Edge Functions before modification.
+- Deployed version 2 of both Edge Functions; deployment responses reported ACTIVE.
+- Confirmed download_logs exists and currently contains 0 rows; no production document download has yet exercised the new logging path.
+- Confirmed no storage buckets were made public and no schema migration was required.
+- Browser/Playwright end-to-end execution remains unavailable through connected tools and is therefore pending Batch 9.
+
+### Security notes
+- The functions intentionally retain JWT verification disabled because they serve public archive content without requiring user login; authorization is implemented inside the function body using server-side database lookups and exact record/path checks.
+- CORS remains permissive (*) because the endpoints are public-content delivery endpoints. No secrets are exposed to the browser.
+- The service-role key is server-side only in the Edge Functions.
+- Upload MIME/type and size checks still occur in the admin client and should receive deeper server-side/content validation in Batch 7 if the storage policy architecture permits it.
+
+### User action
+No immediate user action is required.
+
+### Resulting state
+Batch 3 lifecycle hardening: COMPLETE for public delivery and download logging.
+Next: Batch 4 — Public Archive Completion.
