@@ -380,6 +380,7 @@ Next: Batch 6 — Admin UX + Accessibility.
 - `docs/MASTER-HANDOFF.md`
 
 ### Verification
+- Corrected initial CRUD focus so the first configured text/select/date/etc. control receives focus regardless of module field naming.
 - Re-read all principal admin surfaces and current admin CSS from GitHub before editing.
 - Confirmed there is no GitHub Actions workflow currently present in `.github/workflows`.
 - No schema, auth policy, storage, or dependency changes were made.
