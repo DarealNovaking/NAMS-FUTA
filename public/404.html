@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>NAMS FUTA Digital Archive</title>
+    <script>
+      // GitHub Pages SPA fallback for React routes.
+      const path = window.location.pathname;
+      const base = '/NAMS-FUTA/';
+      const route = path.startsWith(base) ? path.slice(base.length) : '';
+      sessionStorage.setItem('spa-route', route + window.location.search + window.location.hash);
+      window.location.replace(base);
+    </script>
+  </head>
+  <body>
+    Redirecting…
+  </body>
+</html>
