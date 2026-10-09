@@ -619,3 +619,26 @@ Expected Pages URL:
 - Fix commit: `261835d3de851ce3e31ebf461f12c026c9919d7b`.
 - Verification: inspected the exact CI error and source lines; corrected the offending syntax. Fresh Pages workflow should trigger automatically.
 - Current status: deployment not yet verified successful; browser QA remains pending.
+
+
+## Production debugging pass — 2026-10-09
+### Confirmed deployment defects
+- The Vite base was hard-coded to `/NAMS-FUTA/`, so Netlify/root deployments would generate incorrect asset URLs and app links.
+- GitHub Pages had a `404.html` route-capture fallback, but `src/App.jsx` never consumed `sessionStorage.spa-route`; direct nested URLs therefore lost the requested route after fallback.
+- The admin module selector read the raw browser pathname. Under GitHub Pages' `/NAMS-FUTA/` prefix, it parsed the wrong segment and could fail to open the requested admin module.
+- GitHub Pages and Netlify require different base paths; the repository now defaults Vite to root deployment and sets `VITE_BASE_PATH=/NAMS-FUTA/` only in the GitHub Pages workflow.
+### Changes made
+- `vite.config.js`: configurable `base`, defaulting to `/`.
+- `.github/workflows/deploy.yml`: explicit GitHub Pages base path at build time.
+- `src/App.jsx`: deployment-aware URL generation and path normalization; consumes/restores saved GitHub Pages SPA routes and restores the canonical browser URL.
+- `src/pages/AdminPage.jsx`: normalizes admin module routing against Vite's base path.
+- `public/404.html`: handles unavailable session storage without stopping fallback.
+### Verification status
+- GitHub connection permissions were confirmed: repository `DarealNovaking/NAMS-FUTA`, branch `main`, push permission `true`.
+- Changes were committed to `main`; GitHub Actions deployment/build status and live browser behavior still require checking after the workflow runs.
+- No local npm build or browser automation was run in this tool session; do not treat the site as production-verified until CI and live route checks pass.
+### Next checks
+1. Inspect the latest GitHub Pages workflow run and build logs.
+2. Verify GitHub Pages homepage and direct `/NAMS-FUTA/admin` / `/NAMS-FUTA/admin/login` loads.
+3. For Netlify, use root base path and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in site environment variables.
+4. Verify administrator login, role/profile lookup, public data queries and Edge Function calls with browser console/network logs.
