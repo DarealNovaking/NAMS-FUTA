@@ -6,16 +6,39 @@ import SearchPage from './pages/SearchPage';
 import AdminPage from './pages/AdminPage';
 import { supabase } from './lib/supabase';
 
-const BASE_PATH = '/NAMS-FUTA';
-const BASE_URL = `${BASE_PATH}/`;
+const BASE_URL = import.meta.env.BASE_URL || '/';
+const BASE_PATH = BASE_URL === '/' ? '' : BASE_URL.replace(/\/$/, '');
 
 function appPath(pathname) {
-  if (pathname === BASE_PATH || pathname === `${BASE_PATH}/`) return '/';
+  if (!BASE_PATH) return pathname || '/';
+  if (pathname === BASE_PATH || pathname === BASE_URL) return '/';
   return pathname.startsWith(`${BASE_PATH}/`) ? pathname.slice(BASE_PATH.length) || '/' : pathname;
 }
 
 function siteHref(pathname = '/') {
-  return `${BASE_PATH}${pathname === '/' ? '/' : pathname}`;
+  const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`;
+  return BASE_PATH ? `${BASE_PATH}${normalized === '/' ? '/' : normalized}` : normalized;
+}
+
+function getInitialPath() {
+  let pathname = window.location.pathname || '/';
+  let search = window.location.search || '';
+  let hash = window.location.hash || '';
+  try {
+    const savedRoute = window.sessionStorage.getItem('spa-route');
+    if (savedRoute) {
+      window.sessionStorage.removeItem('spa-route');
+      const restored = new URL(savedRoute.replace(/^\\?/, ''), window.location.origin);
+      pathname = restored.pathname.startsWith('/') ? restored.pathname : `/${restored.pathname}`;
+      search = restored.search;
+      hash = restored.hash;
+      const canonicalPath = siteHref(appPath(pathname));
+      window.history.replaceState({}, '', `${canonicalPath}${search}${hash}`);
+    }
+  } catch {
+    // Storage can be unavailable in privacy-restricted browsing; normal routing still works.
+  }
+  return appPath(pathname);
 }
 
 const routes = {
@@ -41,7 +64,7 @@ function getRoute(pathname) {
 }
 
 export default function App() {
-  const [path, setPath] = useState(appPath(window.location.pathname || '/'));
+  const [path, setPath] = useState(getInitialPath());
   const [mobileOpen, setMobileOpen] = useState(false);
   const [footerCredits, setFooterCredits] = useState(null);
 
@@ -62,7 +85,7 @@ export default function App() {
       if (!link || link.target || link.origin !== window.location.origin || link.hasAttribute('download')) return;
       const url = new URL(link.href);
       event.preventDefault();
-      const nextPath = url.pathname.startsWith(BASE_PATH) ? url.pathname : siteHref(url.pathname);
+      const nextPath = BASE_PATH && (url.pathname === BASE_PATH || url.pathname.startsWith(`${BASE_PATH}/`)) ? url.pathname : siteHref(url.pathname);
       window.history.pushState({}, '', `${nextPath}${url.search}${url.hash}`);
       setPath(appPath(nextPath));
       setMobileOpen(false);
