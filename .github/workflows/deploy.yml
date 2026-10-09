@@ -30,6 +30,8 @@ jobs:
         run: npm run build
         env:
           VITE_BASE_PATH: /NAMS-FUTA/
+          VITE_SUPABASE_URL: https://amswykapebeevhstmvii.supabase.co
+          VITE_SUPABASE_ANON_KEY: sb_publishable_G-n4ho_El8MCionr7cQVcw_jWdqYvwJ
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
