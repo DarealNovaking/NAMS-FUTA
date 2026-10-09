@@ -8,7 +8,11 @@
       const path = window.location.pathname;
       const base = '/NAMS-FUTA/';
       const route = path.startsWith(base) ? path.slice(base.length) : '';
-      sessionStorage.setItem('spa-route', route + window.location.search + window.location.hash);
+      try {
+        sessionStorage.setItem('spa-route', route + window.location.search + window.location.hash);
+      } catch (_) {
+        // Continue to the app root even when sessionStorage is unavailable.
+      }
       window.location.replace(base);
     </script>
   </head>
