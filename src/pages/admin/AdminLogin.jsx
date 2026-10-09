@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { ArrowRight, LockKeyhole, Mail, KeyRound } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
-const BASE_URL = import.meta.env.BASE_URL || '/';
-const ADMIN_URL = `${BASE_URL}admin`;
-const RESET_URL = `${BASE_URL}admin/reset-password`;
+const ADMIN_URL = 'https://darealnovaking.github.io/NAMS-FUTA/admin';
+const RESET_URL = 'https://darealnovaking.github.io/NAMS-FUTA/admin/reset-password';
 
 export default function AdminLogin({ onAuthenticated, forceRecovery = false }) {
   const [email, setEmail] = useState('');
@@ -22,7 +21,7 @@ export default function AdminLogin({ onAuthenticated, forceRecovery = false }) {
 
     if (mode === 'forgot') {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: new URL(RESET_URL, window.location.origin).toString(),
+        redirectTo: RESET_URL,
       });
       if (resetError) setError(resetError.message);
       else setNotice('If an account exists for that email, a password reset link has been sent. Check your inbox and spam folder.');
@@ -37,7 +36,7 @@ export default function AdminLogin({ onAuthenticated, forceRecovery = false }) {
       if (updateError) { setError(updateError.message); setBusy(false); return; }
       setNotice('Your password has been updated. Redirecting you to administrator sign-in…');
       setBusy(false);
-      window.setTimeout(() => { window.location.href = new URL(ADMIN_URL, window.location.origin).toString(); }, 900);
+      window.setTimeout(() => { window.location.href = ADMIN_URL; }, 900);
       return;
     }
 
@@ -78,6 +77,6 @@ export default function AdminLogin({ onAuthenticated, forceRecovery = false }) {
     {mode === 'login' && <button className="back-home" type="button" onClick={() => { setMode('forgot'); setError(''); setNotice(''); }}>Forgot password?</button>}
     {mode === 'forgot' && <button className="back-home" type="button" onClick={() => { setMode('login'); setError(''); setNotice(''); }}>Back to sign in</button>}
     {mode === 'recovery' && <p className="back-home">Use the secure link sent to your email to finish resetting your password.</p>}
-    <a className="back-home" href={new URL(BASE_URL, window.location.origin).toString()}>Return to archive</a>
+    <a className="back-home" href="https://darealnovaking.github.io/NAMS-FUTA/">Return to archive</a>
   </div></main>;
 }
