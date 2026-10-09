@@ -28,7 +28,7 @@ function getInitialPath() {
     const savedRoute = window.sessionStorage.getItem('spa-route');
     if (savedRoute) {
       window.sessionStorage.removeItem('spa-route');
-      const restored = new URL(savedRoute.replace(/^\\?/, ''), window.location.origin);
+      const restored = new URL(savedRoute.startsWith('/') ? savedRoute : `/${savedRoute}`, window.location.origin);
       pathname = restored.pathname.startsWith('/') ? restored.pathname : `/${restored.pathname}`;
       search = restored.search;
       hash = restored.hash;
