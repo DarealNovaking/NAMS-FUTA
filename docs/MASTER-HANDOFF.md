@@ -642,3 +642,50 @@ Expected Pages URL:
 2. Verify GitHub Pages homepage and direct `/NAMS-FUTA/admin` / `/NAMS-FUTA/admin/login` loads.
 3. For Netlify, use root base path and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in site environment variables.
 4. Verify administrator login, role/profile lookup, public data queries and Edge Function calls with browser console/network logs.
+
+## Admin password recovery troubleshooting — 2026-10-10
+
+### User-reported problem and resolution so far
+- The administrator could not sign in because the password was forgotten. The deployed admin login initially did not visibly offer a working password-reset flow.
+- Added a **Forgot password?** flow using Supabase Auth `resetPasswordForEmail`, plus a dedicated `/admin/reset-password` page for setting and confirming a new password.
+- Initially, the reset form reported that authentication was not configured. Inspection found that the GitHub Pages workflow built the app without the Vite environment variables needed by `src/lib/supabase.js`.
+- Updated `.github/workflows/deploy.yml` to supply the Supabase project URL and publishable client key during the production build. This is a publishable browser key, not a service-role secret.
+- The user then received the reset email, confirming the request reached the email delivery flow.
+- The first email link opened `localhost:3000`. The code was updated to use the explicit production reset URL rather than deriving it from the current origin.
+- The user updated Supabase Authentication → URL Configuration so the production redirect was accepted. The user reports that the email link then opened the production reset page.
+- The reset page then reported **“Auth session missing”** when attempting to set the password.
+- Updated `src/pages/admin/AdminLogin.jsx` to establish a recovery session before enabling password entry. It handles Supabase PKCE `?code=` links with `exchangeCodeForSession`, supports access/refresh tokens in the URL hash with `setSession`, checks `getSession()`, and only enables password submission after a valid session is available.
+- The user has hit the password-reset email rate limit for today. No successful password change has yet been confirmed. Do not send further reset requests until the rate limit clears.
+
+### Commits and deployment evidence
+- `0c1bc9dbdf5bdd77b7a0242b0f5b8e1d8045b74d` — Configure Supabase client in GitHub Pages build.
+- `de3f17e593f1e7e79e4ce8fe06c8c91fb7b568e9` — Force password recovery links to production site.
+- `b0b4d646077147cd9dbca613b2b9414eda385a2e` — Establish Supabase recovery session before password update.
+- Latest recovery-session deployment run: https://github.com/DarealNovaking/NAMS-FUTA/actions/runs/38007244447 — completed successfully (2026-10-10).
+- Production admin URL: https://darealnovaking.github.io/NAMS-FUTA/admin
+- Production reset URL: https://darealnovaking.github.io/NAMS-FUTA/admin/reset-password
+- Repository: `DarealNovaking/NAMS-FUTA`, branch `main`.
+
+### Supabase URL Configuration notes
+- Recommended **Site URL**: `https://darealnovaking.github.io/NAMS-FUTA/` (the general archive homepage).
+- Required **Redirect URL allowlist entry**: `https://darealnovaking.github.io/NAMS-FUTA/admin/reset-password`.
+- The user temporarily set the Site URL to the reset route because using the homepage naturally opens the general archive. Keep the distinction clear: Site URL is the default destination; the reset route should be explicitly allowlisted and passed as the recovery redirect.
+- Since the user reports the link now opens the production reset page, avoid changing Supabase settings again without evidence it is necessary.
+
+### Next session checklist
+1. Do not request a reset email immediately; the user has reached the reset-email rate limit. Wait until Supabase permits another request.
+2. Confirm the latest deployment is still green if needed; do not create another deployment unless a new defect is found.
+3. Once rate limit clears, open the production admin page and request exactly one fresh reset email.
+4. Open the newest email link. Wait for the reset page to finish verifying the recovery session.
+5. Enter a new password (minimum 8 characters) and confirmation; submit once.
+6. Verify the success notice and test sign-in at the production admin URL.
+7. If the session still fails, capture the exact on-page error and inspect the Supabase Auth email template/link type and redirect settings. Do not ask the user to share the reset URL, access token, refresh token, password, or other secrets.
+8. After password change succeeds, resume Phase 3 remaining work from the existing batches and continue updating this handoff after each meaningful batch.
+
+### Current status
+- GitHub Pages Supabase client configuration: deployed.
+- Production redirect hardcoding: deployed.
+- Recovery session establishment before `updateUser`: deployed.
+- Reset email delivery: user confirmed email received.
+- End-to-end password change: **PENDING**, blocked by the user's temporary reset-email rate limit.
+- Immediate user action: none tonight; resume when the rate limit clears.
