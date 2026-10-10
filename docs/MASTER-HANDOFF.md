@@ -724,3 +724,59 @@ Expected Pages URL:
 - Website identity/footer protection, removal of settings from the normal admin navigation, site-settings write-policy removal, and client-policy audit-log append-only restrictions were implemented in earlier hardening batches.
 - This continuation completed a live policy/RLS inventory and documented the remaining risks. It did not implement granular admin roles or hard-delete safeguards because the proposed policy migration was blocked and must not be represented as deployed.
 - Phase 3 remains **IN PROGRESS** pending a safe, tested preservation migration, role/handover decisions, storage bucket verification and end-to-end QA.
+
+
+## Full Phase 3 QA pass — 2026-10-10
+
+### Scope and evidence
+This pass combined repository source review, GitHub Actions deployment verification, read-only Supabase schema/data/policy checks, and Supabase security/performance advisor results. Direct HTTP/browser testing of the live GitHub Pages site could not be completed from this execution environment: DNS resolution for the live domain failed in the shell, and the web fetcher returned cache misses. Therefore, this is a substantial static/database QA pass, not a claim that real-user browser QA has passed.
+
+### Deployment
+- Latest documentation commit: `71216e7b272b886f099527b49e33be0253376b2e`.
+- GitHub Actions run `38062669206` completed with conclusion `success`.
+- Workflow builds with Vite base path `/NAMS-FUTA/` and configured Supabase URL/publishable client key. No service-role key was found in the inspected workflow/client configuration.
+- `package.json` defines a build script but no test or lint script. The dependency versions use caret ranges. The repository root listing did not show a lockfile in the inspected portion; dependency reproducibility needs confirmation.
+
+### Live database checks
+- RLS enabled on all 23 inspected public tables.
+- All seven Storage buckets are configured private: `archive-documents`, `avatars`, `event-media`, `executive-photos`, `gallery`, `project-files`, `website-files`. Bucket-level file-size and MIME restrictions are configured.
+- Storage object policies allow authenticated `admin`/`super_admin` accounts to read, upload, update and delete objects in those buckets. This is a privileged capability; file deletion/replacement and database cleanup must be tested together.
+- One active admin/super_admin profile exists in the database.
+- No orphaned references were found in the tested checks for document category/session/level, administration session, executive administration, event-document document, or meeting-document document references.
+- The `search_public_documents(search_query text, result_limit integer)` RPC exists and is SECURITY INVOKER, so caller RLS should remain in effect.
+- The current database has 17 archive categories but **zero rows** in each of the following inspected tables: documents, sessions, administrations, executives, events, meetings, projects, announcements and handover_records. About/contact settings are present but their key content fields are blank. This means the live archive currently lacks institutional content; it is not a populated archive ready for acceptance.
+- No data was modified as part of these checks.
+
+### Findings — must address before release
+1. **P0/P1 — Empty institutional archive.** Populate and verify approved seed/historical data (sessions, administrations, executive records, documents and other content) before content completeness can pass. Do not fabricate historical records.
+2. **P1 — Destructive admin CRUD.** Generic admin modules expose Delete actions; broad admin manage policies permit hard deletes for several institutional tables. A failed migration attempt did not change this. Establish safe archive/soft-delete and hard-delete authorization, especially for sessions, administrations, handovers and linked records, before relying on long-term preservation.
+3. **P1 — End-to-end QA not completed.** Browser-level navigation, responsive layout, form interactions, Auth flows, signed URLs, uploads, replacements and failure handling remain unverified because the live site could not be fetched from this environment. Manually run the QA checklist below from a browser.
+4. **P1 — Password recovery still needs human end-to-end confirmation.** Previous handoff says the reset link reached the production page but the password change had not been confirmed; rate limit was reached. Do not declare administrator access fully recovered until a password change and fresh sign-in succeed.
+5. **P1 — Admin role separation not implemented.** Only `student`, `admin`, `super_admin` are currently supported. Content Administrator / Records Supervisor / Technical Custodian remains a design requirement, not a deployed capability.
+6. **P2 — Leaked password protection disabled.** Supabase security advisor reports `auth_leaked_password_protection` warning. Enable it in Supabase Auth password security settings.
+7. **P2 — RLS performance lints.** Advisor flags repeated auth-function evaluation in `activity_logs` insert policy and multiple permissive policies on numerous tables. Optimize policies only after regression testing; do not blindly drop policies that intentionally combine public reads with admin writes.
+8. **P2 — Storage cleanup risks.** Admin UI deletes database records and then removes file objects (or removes uploaded files after an error). This is not atomic; test failure scenarios and prioritize archival/soft-delete for historical files.
+9. **P2 — No automated project test/lint scripts.** Add reproducible build/static checks and browser regression tests; pin dependencies with a lockfile if one is not already committed.
+
+### Manual browser QA required
+- Public home and logo load; header/footer links stay under the GitHub Pages base path.
+- Open every public route directly in a fresh tab and reload: about, constitution, academics and level subroutes, past questions and course subroutes, projects/details, events/details, gallery, meetings/details, executives/administrations, library, downloads, news/details, reports, financial records, handover notes, alumni, contact, search.
+- Verify missing/empty data shows friendly empty states and no console errors.
+- Search terms, filters, query-string search and no-result behavior.
+- Admin login, invalid credentials, inactive/non-admin profile rejection, refresh persistence, logout, direct protected URLs, and password recovery/reset/sign-in.
+- Create/edit/publish/unpublish/archive/restore a test document; verify visibility with anonymous and authenticated users; verify signed URL expiry and file replacement cleanup. Use a clearly labeled disposable test record and remove it after testing only if safe.
+- Test upload MIME/size boundaries and failed upload/save paths; ensure neither orphaned files nor records occur.
+- Test all admin modules' create/edit/delete behaviors, especially sessions, administrations, handovers, event/meeting relations and media.
+- Verify site identity settings cannot be changed through UI or direct API by an ordinary admin.
+- Test anonymous/student/admin access against private Storage and private membership data.
+- Check mobile widths, keyboard navigation, labels, focus, dialog dismissal, contrast, and 404/deep-link refresh behavior.
+- Verify footer attribution remains locked and correct.
+
+### Current QA result
+- Repository/deployment checks: PASS for latest workflow run.
+- Database structural/security spot checks: PARTIAL PASS (RLS enabled, private buckets and core references checked).
+- Content readiness: FAIL (core archive tables empty; about/contact content fields blank).
+- Preservation/hard-delete safety: FAIL / unresolved.
+- Security advisor: WARN (leaked-password protection disabled; RLS performance warnings).
+- Browser end-to-end QA: BLOCKED / NOT RUN in this environment.
+- Overall: **NOT QA-READY**. Do not label Phase 3 complete until P1 findings are addressed and browser end-to-end checks pass.
