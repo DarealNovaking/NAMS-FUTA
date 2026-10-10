@@ -5,6 +5,7 @@ import ArchivePage from './pages/ArchivePage';
 import SearchPage from './pages/SearchPage';
 import AdminPage from './pages/AdminPage';
 import { supabase } from './lib/supabase';
+import { siteHref } from './lib/paths';
 
 const BASE_URL = import.meta.env.BASE_URL || '/';
 const BASE_PATH = BASE_URL === '/' ? '' : BASE_URL.replace(/\/$/, '');
@@ -13,11 +14,6 @@ function appPath(pathname) {
   if (!BASE_PATH) return pathname || '/';
   if (pathname === BASE_PATH || pathname === BASE_URL) return '/';
   return pathname.startsWith(`${BASE_PATH}/`) ? pathname.slice(BASE_PATH.length) || '/' : pathname;
-}
-
-function siteHref(pathname = '/') {
-  const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`;
-  return BASE_PATH ? `${BASE_PATH}${normalized === '/' ? '/' : normalized}` : normalized;
 }
 
 function getInitialPath() {
@@ -98,7 +94,7 @@ export default function App() {
         <span className="brand-copy"><strong>NAMS</strong><small>FUTA DIGITAL ARCHIVE</small></span>
       </a>
       <nav className={`main-nav ${mobileOpen ? 'is-open' : ''}`} aria-label="Primary navigation">
-        <a href="/">Home</a><a href={siteHref("/academics")}>Academics</a><a href={siteHref("/administrations")}>Administration</a><a href={siteHref("/about")}>About NAMS</a>
+        <a href={siteHref("/")}>Home</a><a href={siteHref("/academics")}>Academics</a><a href={siteHref("/administrations")}>Administration</a><a href={siteHref("/about")}>About NAMS</a>
       </nav>
       <div className="header-actions"><a className="search-trigger" href={siteHref("/search")}><Search size={17} /><span>Search</span></a><a className="admin-link" href={siteHref("/admin/login")}><Shield size={16} /> Admin</a></div>
       <button className="menu-toggle" onClick={() => setMobileOpen((v) => !v)} aria-label={mobileOpen ? 'Close menu' : 'Open menu'} aria-expanded={mobileOpen}>{mobileOpen ? <X size={22} /> : <Menu size={22} />}</button>
@@ -113,7 +109,7 @@ function SiteFooter() {
   const builtBy = 'Comr. Oluwafemi Mayowa (Ñøvã kïñg) — Assistant General Secretary';
   return <footer className="footer" id="contact"><div className="container">
     <div className="nexus-credit"><span>Brought to you by</span><strong>TEAM NEXUS</strong></div>
-    <div className="footer-grid"><div><strong>NAMS FUTA</strong><p>National Association of Microbiology Students<br />Federal University of Technology, Akure</p></div><div><span>Archive</span><a href="/academics">Academic Resources</a><a href={siteHref("/past-questions")}>Past Questions</a><a href={siteHref("/downloads")}>Downloads</a></div><div><span>NAMS</span><a href="/administrations">Administration</a><a href={siteHref("/executives")}>Executive Council</a><a href="/about">About NAMS</a></div><div><span>Contact</span><a href={siteHref("/contact")}>Contact Us</a><a href={siteHref("/news")}>News</a><a href="/search">Search Archive</a></div></div>
+    <div className="footer-grid"><div><strong>NAMS FUTA</strong><p>National Association of Microbiology Students<br />Federal University of Technology, Akure</p></div><div><span>Archive</span><a href={siteHref("/academics")}>Academic Resources</a><a href={siteHref("/past-questions")}>Past Questions</a><a href={siteHref("/downloads")}>Downloads</a></div><div><span>NAMS</span><a href={siteHref("/administrations")}>Administration</a><a href={siteHref("/executives")}>Executive Council</a><a href={siteHref("/about")}>About NAMS</a></div><div><span>Contact</span><a href={siteHref("/contact")}>Contact Us</a><a href={siteHref("/news")}>News</a><a href={siteHref("/search")}>Search Archive</a></div></div>
     <div className="footer-credit-line"><span>Curated by {curatedBy}</span><span>Built by {builtBy}</span></div>
     <div className="footer-bottom"><span>Understanding the Microbial World.</span><span>© NAMS FUTA</span></div>
   </div></footer>;
