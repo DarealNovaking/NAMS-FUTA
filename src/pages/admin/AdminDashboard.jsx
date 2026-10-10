@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, Bell, BookOpen, CalendarDays, ClipboardList, FileText, FolderOpen, LogOut, Search, Settings, ShieldCheck, Users, UserCog } from 'lucide-react';
+import { Activity, Bell, BookOpen, CalendarDays, ClipboardList, FileText, FolderOpen, LogOut, Search, ShieldCheck, Users, UserCog } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { signOut } from '../../lib/auth';
 
@@ -7,7 +7,7 @@ const groups = [
   { label: 'Archive structure', items: [['Categories', 'archive-categories', FolderOpen], ['Academic levels', 'levels', BookOpen], ['Courses', 'courses', BookOpen], ['Academic sessions', 'sessions', CalendarDays], ['Semesters', 'semesters', CalendarDays], ['Website files', 'website-files', FileText]] },
   { label: 'Archive', items: [['Documents', 'documents', FileText], ['Projects', 'projects', FolderOpen], ['Events', 'events', CalendarDays], ['Event documents', 'event-documents', FileText], ['Media', 'media', Activity], ['Meetings', 'meetings', CalendarDays], ['Meeting documents', 'meeting-documents', FileText]] },
   { label: 'Institution', items: [['Administrations', 'administrations', Users], ['Executives', 'executives', Users], ['Members', 'members', Users], ['Alumni', 'alumni', Users], ['Announcements', 'announcements', Bell]] },
-  { label: 'Continuity & security', items: [['Handover', 'handover', ClipboardList], ['Settings', 'settings', Settings], ['Activity', 'activity', Activity], ['Admins', 'admins', UserCog]] }
+  { label: 'Continuity & security', items: [['Handover', 'handover', ClipboardList], ['Activity', 'activity', Activity], ['Admins', 'admins', UserCog]] }
 ];
 
 export default function AdminDashboard({ profile, onSignOut }) {
