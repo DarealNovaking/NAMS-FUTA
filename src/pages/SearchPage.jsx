@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, BookOpen, CalendarDays, FileText, Loader2, Search as SearchIcon, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { siteHref } from '../lib/paths';
 
 const sections = [
   ['All', ''], ['Documents', 'documents'], ['Projects', 'projects'], ['Events', 'events'], ['Meetings', 'meetings'], ['Leadership', 'executives'],
@@ -67,5 +68,5 @@ function SearchResult({ row }) {
   const title = row.title || row.name || row.full_name || row.file_name || 'Untitled record';
   const meta = row.category_name || row.category || row.position || row.event_category || row.meeting_type || row.year || kind;
   const href = kind === 'event' ? `/events/${row.id}` : kind === 'meeting' ? `/meetings/${row.id}` : kind === 'executive' ? `/executives/${row.administration_id || row.id}` : '#';
-  return <article className="result-row"><div className="record-icon"><Icon size={18} /></div><div><span>{meta}</span><h2>{title}</h2><p>{row.description || row.abstract || row.biography || row.content || row.file_name || 'Published public archive record.'}</p>{href !== '#' && <a className="text-link" href={href}>Open record <ArrowRight size={15} /></a>}</div></article>;
+  return <article className="result-row"><div className="record-icon"><Icon size={18} /></div><div><span>{meta}</span><h2>{title}</h2><p>{row.description || row.abstract || row.biography || row.content || row.file_name || 'Published public archive record.'}</p>{href !== '#' && <a className="text-link" href={siteHref(href)}>Open record <ArrowRight size={15} /></a>}</div></article>;
 }
