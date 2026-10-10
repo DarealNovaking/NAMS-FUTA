@@ -216,3 +216,15 @@
   .site-header .brand .brand-logo { width: 40px !important; height: 40px !important; min-width: 40px; max-width: 40px; min-height: 40px; max-height: 40px; flex-basis: 40px; }
   .site-header .brand .brand-copy small { font-size: 8px; letter-spacing: .1em; }
 }
+
+/* Fallback is shown only if the official crest cannot load. */
+.brand-logo-fallback[hidden] { display: none !important; }
+.site-header .brand .brand-logo-fallback {
+  width: 46px; height: 46px; min-width: 46px; flex: 0 0 46px;
+  display: grid; place-items: center; border-radius: 10px;
+  background: var(--nams-green-900); color: var(--nams-lime);
+  font: 800 10px/1 Manrope, sans-serif; letter-spacing: .06em;
+}
+@media (max-width: 760px) {
+  .site-header .brand .brand-logo-fallback { width: 40px; height: 40px; min-width: 40px; flex-basis: 40px; }
+}
