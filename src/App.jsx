@@ -66,16 +66,6 @@ function getRoute(pathname) {
 export default function App() {
   const [path, setPath] = useState(getInitialPath());
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [footerCredits, setFooterCredits] = useState(null);
-
-  useEffect(() => {
-    if (!supabase) return undefined;
-    let mounted = true;
-    supabase.from('site_settings').select('value').eq('key', 'footer_credits').maybeSingle().then(({ data }) => {
-      if (mounted) setFooterCredits(data?.value ?? null);
-    });
-    return () => { mounted = false; };
-  }, []);
 
   useEffect(() => {
     const onPop = () => setPath(appPath(window.location.pathname || '/'));
@@ -114,13 +104,13 @@ export default function App() {
       <button className="menu-toggle" onClick={() => setMobileOpen((v) => !v)} aria-label={mobileOpen ? 'Close menu' : 'Open menu'} aria-expanded={mobileOpen}>{mobileOpen ? <X size={22} /> : <Menu size={22} />}</button>
     </header>
     <main id="top">{path !== '/' && <section className="page-intro container"><p className="eyebrow">NAMS FUTA DIGITAL ARCHIVE</p><h1>{route.title}</h1><p>Preserving academic knowledge, institutional records and the history of NAMS FUTA.</p></section>}<Page route={route} /></main>
-    <SiteFooter credits={footerCredits} />
+    <SiteFooter />
   </div>;
 }
 
-function SiteFooter({ credits }) {
-  const curatedBy = credits?.curated_by || credits?.curatedBy || 'Comr. Akinyele Timileyin (King David) — General Secretary';
-  const builtBy = credits?.built_by || credits?.builtBy || 'Comr. Oluwafemi Mayowa (Ñøvã kïñg) — Assistant General Secretary';
+function SiteFooter() {
+  const curatedBy = 'Comr. Akinyele Timileyin (King David) — General Secretary';
+  const builtBy = 'Comr. Oluwafemi Mayowa (Ñøvã kïñg) — Assistant General Secretary';
   return <footer className="footer" id="contact"><div className="container">
     <div className="nexus-credit"><span>Brought to you by</span><strong>TEAM NEXUS</strong></div>
     <div className="footer-grid"><div><strong>NAMS FUTA</strong><p>National Association of Microbiology Students<br />Federal University of Technology, Akure</p></div><div><span>Archive</span><a href="/academics">Academic Resources</a><a href={siteHref("/past-questions")}>Past Questions</a><a href={siteHref("/downloads")}>Downloads</a></div><div><span>NAMS</span><a href="/administrations">Administration</a><a href={siteHref("/executives")}>Executive Council</a><a href="/about">About NAMS</a></div><div><span>Contact</span><a href={siteHref("/contact")}>Contact Us</a><a href={siteHref("/news")}>News</a><a href="/search">Search Archive</a></div></div>
