@@ -689,3 +689,38 @@ Expected Pages URL:
 - Reset email delivery: user confirmed email received.
 - End-to-end password change: **PENDING**, blocked by the user's temporary reset-email rate limit.
 - Immediate user action: none tonight; resume when the rate limit clears.
+
+
+## Phase 3 hardening continuation — 2026-10-10
+
+### Live database checks completed
+- Confirmed RLS is enabled on all 23 inspected public tables: profiles, archive_categories, levels, sessions, semesters, courses, documents, administrations, alumni, announcements, events, executives, handover_records, activity_logs, download_logs, event_documents, meeting_documents, media, meetings, membership_records, projects, site_settings and website_files.
+- Confirmed the public data tables generally use server-side policies that gate writes through `extensions.current_role()` to `admin` or `super_admin`; public read policies are separate and visibility-aware on documents, projects, alumni, media and announcements.
+- Confirmed `site_settings` currently exposes only SELECT for the approved public keys (`site_identity`, `footer_credits`, `contact`, `about_nams`, `national_body`) and no client-facing write policy was present in the inspected policy listing.
+- Confirmed `activity_logs` has SELECT restricted to admin/super_admin and INSERT constrained to the caller's own user ID, with no UPDATE/DELETE policy listed. This is client-facing append-only behavior, not protection against database owners/service-role access.
+- Storage policy review found the listed archive-related buckets (`archive-documents`, `project-files`, `gallery`, `executive-photos`, `event-media`, `avatars`, `website-files`) are governed by authenticated admin/super_admin policies for read, upload, update and delete. Storage object deletion is therefore still available to privileged admins; deleting a storage object can orphan a database record or break a historical reference if the application cleanup sequence fails.
+- Core history tables include `sessions`, `administrations`, `handover_records`; documents have a first-class `archived` status. Current write policies for core history tables include broad admin manage policies, so hard-delete prevention is not yet confirmed.
+- The live role enum remains `student`, `admin`, `super_admin`. The existing policies and current app authorization are built around admin/super_admin. The proposed separate Content Administrator / Records Supervisor / Technical Custodian roles are NOT implemented. Do not add role enum values until all policies, UI permissions and privileged Edge Functions are migrated together.
+- The handover table supports draft/completed records and checklist JSON, but a complete role-restricted sign-off and outgoing-admin revocation workflow still needs end-to-end verification.
+
+### Important limits / follow-up
+- A database migration attempting to split broad management policies into insert/update-only policies was blocked before execution. No such policy change should be assumed applied.
+- No data was intentionally deleted or overwritten in this audit.
+- Storage bucket visibility/configuration and each delete/replace UI path still require targeted verification. Current storage policies show privileged access boundaries, but do not prove all buckets are private or that old-file cleanup is atomic.
+- Automated browser QA has not yet been executed. Phase 3 is not yet ready to declare complete.
+
+### QA and release gate
+1. Verify admin login and recovery end-to-end after the Supabase reset-email rate limit clears.
+2. Test that direct access and API writes to site identity settings fail for ordinary admin users.
+3. Test public, student-authenticated and admin visibility for documents/projects/alumni/media.
+4. Test document upload, replacement, archive, restore/publish transitions, signed URL access and failed-upload cleanup.
+5. Confirm deleting a document/media item cannot silently destroy the only historical file; verify metadata/file consistency after each action.
+6. Confirm old administration/session records remain visible after creating a new administration; verify handover completion, audit logging and account revocation.
+7. Test storage access as anonymous, student, admin and super_admin; confirm intended bucket privacy and no cross-bucket access.
+8. Test public archive search/detail, announcements scheduling, event/meeting document relationships, mobile header/logo and locked footer attribution.
+9. Check GitHub Actions deployment result and inspect browser console/network errors before calling QA passed.
+
+### Current Phase 3 status
+- Website identity/footer protection, removal of settings from the normal admin navigation, site-settings write-policy removal, and client-policy audit-log append-only restrictions were implemented in earlier hardening batches.
+- This continuation completed a live policy/RLS inventory and documented the remaining risks. It did not implement granular admin roles or hard-delete safeguards because the proposed policy migration was blocked and must not be represented as deployed.
+- Phase 3 remains **IN PROGRESS** pending a safe, tested preservation migration, role/handover decisions, storage bucket verification and end-to-end QA.
