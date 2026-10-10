@@ -189,3 +189,30 @@
   .science-stage .cell-node,
   .science-stage::after { animation: none; }
 }
+
+
+/* Official NAMS crest: lock its dimensions so it can never expand into the page layout. */
+.site-header .brand { min-width: 0; flex: 0 1 auto; }
+.site-header .brand .brand-logo {
+  display: block !important;
+  width: 46px !important;
+  height: 46px !important;
+  min-width: 46px;
+  max-width: 46px;
+  min-height: 46px;
+  max-height: 46px;
+  flex: 0 0 46px;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 0;
+  overflow: hidden;
+}
+.site-header .brand .brand-copy { min-width: 0; }
+.site-header .brand .brand-copy strong,
+.site-header .brand .brand-copy small { overflow-wrap: normal; white-space: nowrap; }
+@media (max-width: 760px) {
+  .site-header { gap: 12px; padding-left: 14px; padding-right: 14px; }
+  .site-header .brand { gap: 8px; }
+  .site-header .brand .brand-logo { width: 40px !important; height: 40px !important; min-width: 40px; max-width: 40px; min-height: 40px; max-height: 40px; flex-basis: 40px; }
+  .site-header .brand .brand-copy small { font-size: 8px; letter-spacing: .1em; }
+}
