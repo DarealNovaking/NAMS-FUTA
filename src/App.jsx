@@ -104,7 +104,8 @@ export default function App() {
     <div className="ambient ambient-two" aria-hidden="true" />
     <header className="site-header">
       <a className="brand" href={siteHref("/")} aria-label="NAMS FUTA Digital Archive home">
-        <img className="brand-logo" src={`${BASE_URL}Public/MCB%20Class%2029%20official%20group%2020260904_180458.jpg`} alt="Official National Association of Microbiology Students, FUTA logo" width="46" height="46" onError={(event) => { event.currentTarget.style.visibility = 'hidden'; event.currentTarget.setAttribute('aria-hidden', 'true'); }} />
+        <img className="brand-logo" src="https://raw.githubusercontent.com/DarealNovaking/NAMS-FUTA/main/Public/References/file_00000000456081f4a3d7608cada4448d.png" alt="Official National Association of Microbiology Students, FUTA logo" width="46" height="46" onError={(event) => { event.currentTarget.hidden = true; event.currentTarget.nextElementSibling.hidden = false; }} />
+        <span className="brand-logo-fallback" hidden aria-hidden="true">NAMS</span>
         <span className="brand-copy"><strong>NAMS</strong><small>FUTA DIGITAL ARCHIVE</small></span>
       </a>
       <nav className={`main-nav ${mobileOpen ? 'is-open' : ''}`} aria-label="Primary navigation">
