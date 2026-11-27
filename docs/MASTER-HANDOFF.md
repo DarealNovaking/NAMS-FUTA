@@ -780,3 +780,131 @@ This pass combined repository source review, GitHub Actions deployment verificat
 - Security advisor: WARN (leaked-password protection disabled; RLS performance warnings).
 - Browser end-to-end QA: BLOCKED / NOT RUN in this environment.
 - Overall: **NOT QA-READY**. Do not label Phase 3 complete until P1 findings are addressed and browser end-to-end checks pass.
+
+
+## Phase 1 reconciliation — 2026-11-27
+
+### Scope and safety
+This checkpoint reconciles the existing handoff against the current `main` branch, live Supabase metadata/schema, current deployment workflow, and a read-only production browser smoke test. It is an inventory/reconciliation pass only.
+- No application code was changed.
+- No database schema, data, RLS policy, storage bucket/object, Edge Function, Auth setting, or deployment setting was changed.
+- The only intended repository write in this batch is this handoff update.
+
+### Current source-of-truth state
+- Repository: `DarealNovaking/NAMS-FUTA`
+- Branches: `main` only.
+- Latest branch commit observed: `0a1757058809266cd924706d559852fc3078fcfc` — `Scope admin return link to repository base path` (2026-10-10 15:58:28 UTC).
+- Supabase project: `NAMS`, ref `amswykapebeevhstmvii`, region `eu-west-1`, PostgreSQL 17.6.1.166.
+- Supabase status: `ACTIVE_HEALTHY`.
+- Supabase API URL returned by the project integration: `https://amswykapebeevhstmvii.supabase.co`.
+- Frontend build workflow sets `VITE_SUPABASE_URL` to the same project URL. The deployed frontend target therefore matches the intended NAMS Supabase project at the source-configuration level.
+- The frontend key in the workflow is a publishable/anon client key, not a service-role key. No service-role key is present in the inspected browser configuration.
+
+### Migration history — critical repository/database divergence
+Live Supabase reports these 12 applied migrations, in order:
+1. `20260904231135_initial_nams_archive_schema`
+2. `20260907234156_expand_nams_archive_for_handover`
+3. `20260907234337_harden_public_archive_and_admin_security`
+4. `20260907234350_add_nams_archive_metadata_and_search_v2`
+5. `20260907234545_harden_public_archive_visibility_and_storage`
+6. `20260907234553_harden_auth_profile_defaults`
+7. `20260907234601_add_admin_account_state`
+8. `20260907234627_tighten_public_schedule_and_archive_indexes`
+9. `20260907235329_finalize_nams_storage_and_security`
+10. `20261010140744_protect_site_identity_from_content_admins`
+11. `20261010144503_make_activity_logs_append_only`
+12. `20261104062436_preservation_and_taxonomy_write_access`
+
+The current GitHub `supabase/migrations/` directory contains only:
+- `20261006150000_batch7_security_hardening.sql`
+- `20261006160000_batch8_performance_integrity.sql`
+
+Neither of those two repository filenames appears in the live applied migration list. Therefore:
+- The 12 production-applied migration records are not represented by the current migration files in GitHub.
+- The two migration files currently in GitHub are not recorded as applied in the live migration list.
+- The repository is not presently a reliable, reproducible migration history for the production database.
+- Do not run `supabase db push`, apply either repository migration, reset the database, or create replacement migrations until every live migration has been reconciled with the actual schema/policies/functions and the intended deployment baseline.
+- The next migration-reconciliation task must recover historical SQL where possible from Git history/backups, inspect the live catalog for the final definitions, identify whether the two Batch 7/8 files were superseded or never applied, and produce a verified baseline plus a documented migration plan. Never invent old migration SQL and present it as the original.
+
+### Deployment configuration — authoritative target identified
+The active repository workflow is `.github/workflows/deploy.yml`:
+- Workflow name: `Deploy NAMS FUTA to GitHub Pages`.
+- Trigger: push to `main` and manual dispatch.
+- Build: Node 20, `npm install`, `npm run build`.
+- Vite base path: `/NAMS-FUTA/`.
+- Deploy target: GitHub Pages.
+- Latest workflow run observed: run `52`, ID `38065763495`, commit `0a1757058809266cd924706d559852fc3078fcfc`, conclusion `success` (2026-10-10 15:58 UTC).
+- A previous near-simultaneous run for an intermediate commit was cancelled as the later push superseded it; the final run for the current head succeeded.
+- Production URL recorded in the handoff and used in the browser test: `https://darealnovaking.github.io/NAMS-FUTA/`.
+
+Configuration drift:
+- `README.md` still says Hosting: Netlify.
+- `netlify.toml` and `vercel.json` remain in the repository as alternate/stale deployment configuration.
+- GitHub Pages is the actual configured deployment target in the current workflow and latest successful run. README should be corrected and unused deployment configs should be retained or removed only after confirming the user's intended hosting choice; do not switch hosting based on stale documentation.
+- The workflow currently uses `npm install`, package dependencies use caret ranges, and the repository tree contains no npm lockfile. Builds are therefore less reproducible than they should be. Add/commit a lockfile and move CI to `npm ci` in a separate controlled implementation task after verifying the intended package state.
+- The workflow's Supabase URL matches the live project URL. The actual deployed bundle's runtime environment was not independently introspected, but the latest workflow built the current branch using the matching value.
+
+### Production browser smoke test — PASS (limited scope)
+A read-only browser run against the deployed site completed successfully:
+- Homepage loads over HTTPS at `https://darealnovaking.github.io/NAMS-FUTA/`.
+- Browser-visible page title: `NAMS FUTA Digital Archive`.
+- Main heading: `Institutional memory, built to last.`.
+- No blank page or visible runtime error in the tested views.
+- Primary navigation and the footer's public navigation links were present.
+- Direct navigation to `/NAMS-FUTA/search` rendered the search interface.
+- Search route reload/deep-link fallback worked; no 404 was observed.
+- Run result: completed, 5 browser steps, run ID `cc9dd780-cbfe-46dc-b53f-dce54f2557a8`.
+
+This is a limited public smoke test only. It does not prove that every public route works, that search returns correct data, that authentication works, that admin CRUD is correct, or that uploads/signed URLs work. Admin/authenticated flows were deliberately not touched.
+
+### Live schema and content baseline
+- Live public schema contains 23 tables, and all 23 report RLS enabled.
+- Direct SQL row counts (used as the reliable count check; the compact table-list response incorrectly showed zero estimates for populated tables):
+  - `archive_categories`: 17
+  - `levels`: 5
+  - `semesters`: 2
+  - `profiles`: 2
+  - `site_settings`: 9
+  - `sessions`, `courses`, `documents`, `projects`, `administrations`, `executives`, `announcements`, `events`, `media`, `alumni`, `membership_records`, `download_logs`, `activity_logs`, `website_files`, `meetings`, `meeting_documents`, `event_documents`, `handover_records`: 0 each.
+- The public site can render its structure, but the substantive institutional archive is still unpopulated. Categories, levels and semester reference data exist; the actual sessions, courses, documents, administrations, executives, events, meetings and other institutional content do not yet exist in the live database.
+- Do not fabricate NAMS historical records or academic resources to fill these tables.
+
+### Frontend-to-schema reconciliation snapshot
+Current public/admin source files were checked for direct table/RPC usage:
+- `HomePage.jsx`: `site_settings`, `administrations`, `announcements`.
+- `ArchivePage.jsx`: `site_settings`, `archive_categories`, `levels`, `courses`, `administrations`, `executives`, `media`, `event_documents`, `documents`, `meeting_documents`.
+- `SearchPage.jsx`: RPC `search_public_documents`.
+- `AdminModulePage.jsx`: `activity_logs`, `documents`, `administrations`, plus module-configured tables.
+- `AdminDocuments.jsx`: `documents`, `archive_categories`, `levels`, `courses`, `sessions`, `semesters`, `activity_logs`.
+- `AdminHandover.jsx`: `handover_records`, `administrations`, `activity_logs`.
+The inspected table names exist in the live schema. This is a table-name-level compatibility check, not yet a complete column-by-column query contract test. Phase 1 still needs a systematic extraction of every module's selected/inserted/updated columns and comparison against live columns, constraints and enum values.
+
+### Phase 1 status
+- [x] Read the existing master handoff and preserve its history.
+- [x] Verify current repository branch/head and key deployment files.
+- [x] Verify live Supabase project status and API URL.
+- [x] List all live applied migration records.
+- [x] Enumerate current repository migration files and identify the mismatch.
+- [x] Confirm the workflow deploys the current branch head successfully to GitHub Pages.
+- [x] Confirm the workflow's Supabase URL matches the live NAMS project.
+- [x] Run a read-only production homepage/search/deep-link smoke test.
+- [x] Obtain direct SQL counts for all 23 public tables.
+- [ ] Recover/reconcile the full production migration history and establish a reproducible schema baseline.
+- [ ] Resolve deployment documentation/configuration drift (README says Netlify; workflow deploys GitHub Pages).
+- [ ] Add reproducible dependency installation (lockfile + npm ci) after confirming package/dependency state.
+- [ ] Complete column-level frontend query/write contract comparison across every admin module and public page.
+- [ ] Reconcile all known Nov 27 findings from the broader audit with the current handoff, including media bucket routing and website-files MIME allowlist mismatches.
+
+### Phase 1 blockers and next exact actions
+1. **Migration baseline is the highest-priority blocker.** Recover historical migration SQL from Git history/backups where available. Compare all 12 live migration versions with the two repository files. Inspect the current live schema/catalog and document the final state without mutating production. Produce a baseline/recovery plan before any migration execution.
+2. Complete the column-level frontend/schema compatibility matrix for all public pages and admin modules.
+3. Correct the README's deployment description to GitHub Pages and decide whether Netlify/Vercel configs are intentionally supported or obsolete. Keep GitHub Pages as the current production target unless the user explicitly chooses otherwise.
+4. Add package-lock and deterministic CI only after checking package compatibility and confirming that this change will not alter the production build unexpectedly.
+5. Reconcile media upload/serving and website-files MIME mismatches already found in the Nov 27 audit; these belong to the integration-fix stage after Phase 1 establishes the baseline.
+
+### Resulting state
+- Phase 1: **IN PROGRESS — source/deployment/live-state inventory is substantially verified; migration history and full frontend/schema contract remain unresolved.**
+- Production site: **operational for the limited homepage/search smoke test**.
+- Production database: **ACTIVE_HEALTHY; schema exists, but institutional content tables are largely empty**.
+- Production schema changes: **none made in this reconciliation**.
+- Next work: **migration-history recovery and column-level contract reconciliation**, not new features and not production migrations.
