@@ -1105,3 +1105,16 @@ Recovery commit: `d8a523b465d770dabe2ef8713aa12e7073e1c4da`.
 - [ ] Once migration-stream reconciliation is agreed and complete, establish a clean-environment replay test without touching production.
 
 **Current Phase 1 status: migration SQL recovery is complete; active migration-stream reconciliation remains open.** The earlier statement that historical SQL could not be recovered is superseded by this correction.
+
+
+### Latest verification — recovery commit deployed and smoke-tested
+- Recovery/handoff correction commit: `c95091be6c375a6b3d3fd5f586377ea03fb31358`.
+- GitHub Actions run #58: **SUCCESS** for commit `c95091be6c375a6b3d3fd5f586377ea03fb31358`; build, artifact upload and GitHub Pages deployment all completed successfully.
+- Post-deployment browser smoke run: `0b5f36bd-2913-4f98-8770-691465b3bb24`.
+- Homepage HTTPS load: PASS.
+- Direct `/NAMS-FUTA/search` route: PASS.
+- Search deep-link reload: PASS.
+- No 404, blank page or visible JavaScript failure in the tested views.
+- No database or application source code changes were included in this recovery batch; only documentation and archived SQL files were committed.
+
+**Phase 1 now has exact source SQL for all 12 ledgered migrations preserved and verified.** The remaining migration-stream gap is the two already-live Batch 7/8 SQL changes that are absent from the live ledger. Do not run a migration push until that discrepancy is reconciled through a supported migration-management process. Dependency lockfile/CI reproducibility is also still open.
