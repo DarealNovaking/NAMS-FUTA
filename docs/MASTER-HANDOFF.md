@@ -1,9 +1,9 @@
 # NAMS FUTA Digital Archive — Master Handoff
 
 ## Status
-- Phase: Phase 3 — production completion / audit
-- Batch: 1 — Repository + Supabase State Audit
-- Audit date: 2026-10-06
+- Phase: Phase 1 — repository, migration and deployment baseline audit (**IN PROGRESS**)
+- Roadmap: Phase 1 audit → Phase 2 foundation fixes → Phase 3 end-to-end QA → Phase 4 archive population → Phase 5 production readiness
+- Original audit date: 2026-10-06; latest continuation: 2026-11-27
 - Repository: `DarealNovaking/NAMS-FUTA`
 - Branch: `main`
 - Baseline commit before this handoff: `024924f574d86b2ac3842ce2fdc97827a71a352c`
@@ -20,7 +20,7 @@ Permanent, professional, data-driven institutional archive for the National Asso
 - Supabase Auth for administrator authentication
 - PostgreSQL/Supabase tables and RLS expected for authorization
 - Supabase Storage for private archive files
-- Netlify deployment with SPA fallback
+- GitHub Pages deployment through `.github/workflows/deploy.yml` (production URL: `https://darealnovaking.github.io/NAMS-FUTA/`); Netlify/Vercel configuration files are retained but are not the active production deployment
 - Lucide React icons and Three.js dependency
 - Client routing implemented in `src/App.jsx`
 - Public archive implemented primarily through `src/pages/ArchivePage.jsx`
@@ -30,6 +30,8 @@ Permanent, professional, data-driven institutional archive for the National Asso
 - Specialized document, administrator, handover, settings and activity modules
 
 ## Verified repository state
+This handoff contains chronological historical notes. Later dated addenda supersede earlier findings where they conflict; use the latest Phase 1 continuation and checklist as the current operational state.
+
 Latest commit inspected:
 `024924f574d86b2ac3842ce2fdc97827a71a352c` — "Load archive accessibility and responsive polish".
 
