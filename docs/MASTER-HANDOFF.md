@@ -908,3 +908,138 @@ The inspected table names exist in the live schema. This is a table-name-level c
 - Production database: **ACTIVE_HEALTHY; schema exists, but institutional content tables are largely empty**.
 - Production schema changes: **none made in this reconciliation**.
 - Next work: **migration-history recovery and column-level contract reconciliation**, not new features and not production migrations.
+
+
+## Phase 1 continuation — migration evidence and frontend/schema contract — 2026-11-27
+
+### Migration-history investigation: clarified result
+The initial finding is now more precise: the absence of Batch 7/8 versions from the Supabase migration ledger does **not** mean their SQL changes were never applied. The live catalog confirms their effects.
+
+**Live migration ledger (12 entries):**
+- `20260904231135_initial_nams_archive_schema`
+- `20260907234156_expand_nams_archive_for_handover`
+- `20260907234337_harden_public_archive_and_admin_security`
+- `20260907234350_add_nams_archive_metadata_and_search_v2`
+- `20260907234545_harden_public_archive_visibility_and_storage`
+- `20260907234553_harden_auth_profile_defaults`
+- `20260907234601_add_admin_account_state`
+- `20260907234627_tighten_public_schedule_and_archive_indexes`
+- `20260907235329_finalize_nams_storage_and_security`
+- `20261010140744_protect_site_identity_from_content_admins`
+- `20261010144503_make_activity_logs_append_only`
+- `20261104062436_preservation_and_taxonomy_write_access`
+
+**Repository migration history:**
+- The current `supabase/migrations/` directory contains only Batch 7 and Batch 8 SQL.
+- GitHub's path-specific commit history for `supabase/migrations/` contains four commits, all relating to those two batches and their refinements. No tracked SQL for the initial September schema/expansion/security/search migrations or the Oct 10 / Nov 4 ledger entries was found in the repository's migration history.
+- The two tracked files are `20261006150000_batch7_security_hardening.sql` and `20261006160000_batch8_performance_integrity.sql`.
+- Neither timestamp/name appears in the live migration ledger. Treat this as migration-ledger divergence. The exact reason (manual SQL execution, history repair/reset, or another workflow) is not established by the available evidence.
+
+**Live catalog proves Batch 7 effects are present:**
+- `pg_trgm` is installed in schema `extensions`, not `public`.
+- `public.current_role()` and `public.handle_new_user()` have EXECUTE ACL only for `postgres` and `service_role` (not `PUBLIC`, `anon`, or `authenticated`).
+- `extensions.current_role()` exists as SECURITY DEFINER and is executable by `anon` and `authenticated`, matching its intended use inside RLS policies.
+- The policies use the extensions wrapper.
+Therefore Batch 7's important live effects are present despite its missing migration-ledger entry.
+
+**Live catalog proves Batch 8 effects are present:**
+- All 26 indexes represented by the Batch 8 SQL and its follow-up project-level FK index commit exist in `public`, including `projects_level_id_idx`.
+- The first Batch 8 file contains 25 index definitions; a later Git commit adds `projects_level_id_idx`, bringing the live total to 26.
+Therefore Batch 8's index changes are also present despite the missing migration-ledger entry.
+
+**What remains unrecoverable from GitHub at this point:**
+- The original SQL for the first nine September migrations is not in the repository's migration directory or its path-specific history.
+- SQL for the Oct 10 and Nov 4 live migrations is also not tracked in the repository.
+- The Supabase migration ledger stores version/name metadata, not the original SQL text.
+- A live schema/catalog baseline can be reconstructed from the database, but it must not be labelled as the original historical migration SQL.
+- No production migration was applied and no migration ledger was edited during this investigation.
+
+**Safe migration-recovery approach:**
+1. Preserve the 12 live migration records as observed.
+2. Preserve the two existing Batch 7/8 SQL files and their Git history; do not rename or delete them.
+3. Recover the missing historical SQL only from an actual backup, export, developer machine, or other verifiable source if available.
+4. If original SQL cannot be recovered, generate a fresh, clearly labelled baseline from the current live schema and document that it is a reconstruction, not the historical source.
+5. Reconcile the baseline against live policies, functions, triggers, indexes, extensions, enums, grants, storage configuration and Edge Functions before allowing any migration command to target production.
+
+### Frontend-to-live-schema contract review
+The current public pages and admin modules were checked against the live 23-table schema and function signatures. No configured admin-module field was found that is absent from its corresponding live table. Key confirmations:
+- `AdminModulePage.jsx` field configurations for archive categories, levels, courses, sessions, semesters, website files, projects, events, media, meetings, event documents, meeting documents, administrations, executives, announcements, alumni and membership records match the corresponding live column names.
+- `projects.research_area`, `membership_records.full_name/matric_number/membership_number/email/phone`, `events.event_category`, `media.media_type`, and the archive/ownership columns used by the frontend all exist live.
+- `AdminDocuments.jsx` document fields and its category/level/course/session/semester joins match the live schema.
+- `AdminActivity.jsx`, `AdminHandover.jsx`, `AdminLogin.jsx`, and `AdminDashboard.jsx` use columns that exist in the live schema.
+- `SearchPage.jsx` calls `search_public_documents(search_query, result_limit)`; the live function signature is `search_query text, result_limit integer` and its return columns match the document search UI. It only returns published public documents.
+- The public archive pages use tables and columns that exist in the live schema.
+This is a static contract comparison, not a successful authenticated CRUD test. No admin account was used and no records were inserted, updated or deleted.
+
+### Newly confirmed frontend/RLS/storage integration blockers
+These are now confirmed against both the deployed source and live database. Keep them as Phase 2 implementation work; do not silently patch production during this read-only phase.
+
+1. **Generic admin delete conflicts with hard-delete protection (high priority).**
+   - Live `prevent_hard_delete` triggers exist on 17 tables: administrations, alumni, announcements, archive_categories, courses, documents, events, executives, handover_records, levels, media, meetings, membership_records, projects, semesters, sessions and website_files.
+   - The trigger rejects deletes unless the database role is privileged or the current profile role is `super_admin`.
+   - `AdminModulePage.jsx` exposes a generic Delete action that issues a direct `.delete()` for every module. Ordinary `admin` users can therefore see a delete control that the database will reject for these 17 tables.
+   - The generic module should use an explicit archive/soft-delete workflow for archiveable records, or hide/limit permanent deletion to the intended super-admin path. Do not remove the database protection just to make the UI button work.
+
+2. **Document deletion can remove the stored file before the protected database delete fails (high priority).**
+   - `AdminDocuments.jsx` first calls Storage `.remove()` for the document file, then issues `documents.delete()`.
+   - The live `documents` table has the hard-delete trigger. For a non-super-admin admin, the database delete is rejected after the file has already been removed, leaving a live document row that points to a missing object.
+   - Replace this flow with archive/soft-delete semantics and a deliberate file-retention/purge policy. Never delete the object before the row transition is confirmed.
+
+3. **Media upload bucket and public media serving disagree (high priority).**
+   - `AdminModulePage.jsx` uploads all `media` module files to `event-media`.
+   - The active `get-public-media-url` Edge Function requires videos to use `event-media` and non-video media to use `gallery`.
+   - Therefore newly uploaded image/flyer media stored in `event-media` cannot pass the public serving function's bucket validation. Event cover images are a separate supported `event` record path.
+   - Decide one canonical storage rule and align upload, existing object migration (if any), and serving function together.
+
+4. **Website file MIME allowlist mismatch (confirmed).**
+   - The frontend accepts SVG, CSS, JavaScript, JSON, WOFF/WOFF2 fonts and ZIP in addition to PDF/images/text.
+   - The live private `website-files` bucket permits only PDF, JPEG, PNG, WebP and plain text, with a 50 MB limit.
+   - The frontend's broader types will be rejected by Storage. Align the UI allowlist with the intended bucket allowlist, or deliberately update bucket policy after security review.
+
+5. **Public quick-access setting is stored but hidden by RLS.**
+   - A `quick_access` row exists in `site_settings`.
+   - `HomePage.jsx` requests `quick_access`, but the live public SELECT policy allows only `site_identity`, `footer_credits`, `contact`, `about_nams` and `national_body`.
+   - Public clients cannot read the stored quick-access row and the homepage falls back to its hard-coded quick-access list.
+   - Decide whether `quick_access` is intended to be public; if yes, add it to the narrowly scoped read policy in a tested migration.
+
+6. **Site settings write policy is absent.**
+   - The only live `site_settings` policy is the public SELECT policy described above. No INSERT or UPDATE policy exists.
+   - `AdminSettings.jsx` contains an `upsert` implementation, which would be blocked by RLS if it were exposed.
+   - Current `AdminPage.jsx` deliberately renders a protected-settings message for `/admin/settings` rather than mounting `AdminSettings.jsx`; the component is currently unreachable. Keep this distinction clear. If settings editing is later re-enabled, design a narrowly scoped role policy or secure server-side workflow first.
+
+7. **Event archived status is not equivalent to the archive timestamp.**
+   - The generic event editor offers status values `draft`, `published`, and `archived`, but it only writes the `status` field and does not set `archived_at`.
+   - The live public event SELECT policy excludes rows with `archived_at` set and excludes `draft`/`unpublished` statuses, but does not exclude `status='archived'`.
+   - Selecting the UI's Archived status alone can therefore leave the event publicly selectable. Align status handling and public policy in a tested change.
+
+### Deployment documentation update
+- Updated `README.md` Hosting from Netlify to GitHub Pages.
+- Added the active production URL and current GitHub Actions deployment workflow/trigger/build/base-path details.
+- Explicitly documented that `netlify.toml` and `vercel.json` remain as alternate-host configuration files and are not used by the active GitHub Pages workflow.
+- README documentation commit: `4bbfb8936385615a237437af3b0b54f30d9d04a2`.
+- This README commit triggered GitHub Actions run #54; it was still in progress at the time this checkpoint was written. Run #53 for the prior handoff-only commit completed successfully.
+
+### Dependency reproducibility
+- `package.json` uses caret version ranges.
+- No package lockfile exists in the current repository tree.
+- The current workflow uses `npm install`, not `npm ci`.
+- A lockfile plus deterministic CI should be introduced after a controlled dependency resolution/build check. No dependency files were changed in this phase.
+
+### Updated Phase 1 checklist
+- [x] Read and reconcile existing handoff against the current live state.
+- [x] Confirm the GitHub Pages production deployment and latest previously successful run.
+- [x] Confirm deployed workflow's Supabase URL points to the live NAMS project.
+- [x] Verify the current migration ledger and GitHub migration-path history.
+- [x] Compare Batch 7 live security effects against its tracked SQL.
+- [x] Compare Batch 8 live index effects against its tracked SQL and follow-up commit.
+- [x] Complete static frontend table/column/RPC contract comparison.
+- [x] Identify concrete RLS, hard-delete, storage bucket and MIME integration mismatches.
+- [x] Correct README hosting documentation to GitHub Pages.
+- [ ] Recover original SQL for the first nine September migrations and Oct 10 / Nov 4 migrations, or establish a clearly labelled reconstructed schema baseline from live catalog evidence.
+- [ ] Complete reproducible dependency/build check and decide lockfile + `npm ci` implementation.
+- [ ] Confirm GitHub Actions run #54 result after README update.
+- [ ] Re-run production public smoke test after the README deployment run completes (documentation-only change; no frontend bundle behavior expected to change).
+- [ ] Record a verified baseline and migration recovery plan before any database migration execution.
+
+### Current Phase 1 status
+**IN PROGRESS — static schema contract and current deployment configuration are now substantially reconciled. The primary unresolved item is the missing historical migration SQL / reproducible baseline.** The newly confirmed UI/RLS/storage issues are documented for Phase 2 implementation. No production database changes, data changes, storage changes, Edge Function deployments, or auth/policy changes were made in this continuation.
