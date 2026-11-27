@@ -32,7 +32,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
       - name: Generate npm lockfile
         run: npm install --package-lock-only --ignore-scripts
@@ -45,7 +44,7 @@ jobs:
         env:
           VITE_BASE_PATH: /NAMS-FUTA/
           VITE_SUPABASE_URL: https://amswykapebeevhstmvii.supabase.co
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_ANON_KEY: sb_publishable_G-n4ho_El8MCionr7cQVcw_jWdqYvwJ
 
       - name: Commit generated lockfile
         shell: bash
