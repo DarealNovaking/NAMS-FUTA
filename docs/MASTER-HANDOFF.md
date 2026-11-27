@@ -1043,3 +1043,16 @@ These are now confirmed against both the deployed source and live database. Keep
 
 ### Current Phase 1 status
 **IN PROGRESS — static schema contract and current deployment configuration are now substantially reconciled. The primary unresolved item is the missing historical migration SQL / reproducible baseline.** The newly confirmed UI/RLS/storage issues are documented for Phase 2 implementation. No production database changes, data changes, storage changes, Edge Function deployments, or auth/policy changes were made in this continuation.
+
+
+### Phase 1 addendum — quick-access data shape and deployment run status
+A further source/data comparison found that the homepage quick-access configuration has a second mismatch beyond its RLS visibility:
+- Stored `site_settings.quick_access.value` is an object shaped as `{ items: [{ path, label }, ...] }`.
+- `HomePage.jsx` treats `settings.quick_access` as a bare array, then reads each item's `href` rather than `path`.
+- Therefore simply adding `quick_access` to the public SELECT allowlist would still not activate the stored links. A future fix must align all three layers: public SELECT policy, stored JSON shape, and homepage parsing/path mapping. Until then, the existing hard-coded fallback is what users see.
+
+Deployment:
+- Run #53 (handoff checkpoint only): successful.
+- Run #54 (README hosting correction): build, configure-pages and artifact preparation steps completed successfully; GitHub Actions cancelled the run when the newer handoff commit triggered run #55. The deploy job was cancelled, so #54 is not counted as a completed deployment.
+- Run #55 (latest handoff commit `89c085c0c411e7046087df492e5f8952cd7d6955`): build job was in progress at the time of this addendum.
+- No application code changed in either documentation commit. A successful run on the latest head remains the deployment verification gate.
