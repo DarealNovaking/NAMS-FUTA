@@ -1291,3 +1291,38 @@ Expected result: local and remote histories show the same 14 versions (12 recove
 - [ ] Repeat public production smoke test after the next application-code deployment.
 
 **Phase 1 remains IN PROGRESS.** No production database schema, data, Storage, Auth, policy, Edge Function, or migration-ledger state was changed in this continuation.
+
+
+## Phase 1 continuation — 2026-11-27 (deployment and public smoke test)
+
+### GitHub Pages deployment verification
+- Latest handoff correction commit: `536257fe020e77594c365896afbc04f24c05ec7d`.
+- GitHub Actions run #79, ID `46003009177`: **SUCCESS**.
+- Build job passed dependency installation, Vite build, Pages configuration and artifact upload.
+- Deploy job passed.
+- Run URL: https://github.com/DarealNovaking/NAMS-FUTA/actions/runs/46003009177
+
+### Public production smoke test
+- Executed a fresh read-only browser smoke test against `https://darealnovaking.github.io/NAMS-FUTA/`.
+- Test run: https://agent.tinyfish.ai/runs/b5405e44-79bc-499b-b684-0883443c4884
+- Result: **PASSED** across 13 page loads / route checks.
+- Verified homepage, search page (including direct reload), past questions, academic level 100, library, projects, About, events, news, administrations and executives pages; homepage was revisited at the end.
+- All tested pages rendered without blank screens or visible runtime errors.
+- Public navigation exposed the expected archive sections and admin login link.
+- A class photo asset rendered on the executives page.
+- No published archive records were available. Empty states were consistent across archive routes; no public item detail could be tested.
+- This was a public read-only smoke test. It did not sign in or test authenticated admin actions, database writes, uploads, deletion, role enforcement, or CRUD behavior.
+- Therefore public routing/rendering is verified; admin/backend workflow correctness remains unverified and belongs to Phase 3 end-to-end QA after Phase 2 fixes.
+
+### Current Phase 1 checklist (updated)
+- [x] Verify GitHub Actions run #76 build and deploy both succeeded.
+- [x] Prepare and verify a manual-only, exact-confirmation-gated migration-repair workflow for the two already-live Batch 7/8 versions.
+- [x] Verify latest handoff commit deployment (run #79).
+- [x] Repeat public production smoke test; all tested public routes rendered successfully.
+- [ ] Confirm repository secrets are configured; re-check live effects; dispatch the guarded repair workflow only with explicit authorization.
+- [ ] Verify remote migration list and ensure dry-run reports no pending migrations.
+- [ ] Generate a real `package-lock.json` in a clean Node environment; switch deployment CI from `npm install` to `npm ci`; verify build and deploy.
+- [ ] Run clean-environment migration replay in an isolated test Supabase project/database after history reconciliation; never use production for replay.
+- [ ] Complete Phase 1 closure review and ensure every open item is resolved or explicitly transferred with an owner and reason.
+
+**Phase 1 remains IN PROGRESS.** Public production rendering is now verified. No production database schema, data, Storage, Auth, policy, Edge Function, or migration-ledger state was changed during this smoke test.
