@@ -1148,3 +1148,11 @@ Expected result: local and remote histories show the same 14 versions (12 recove
 ### Deployment run after this checkpoint
 - GitHub Actions run #59 for commit `36d0f8d710be2aa94ddee418eb64b4ce4f8cc169`: **SUCCESS** (build and GitHub Pages deploy).
 - The last post-deployment smoke test after run #58 passed. Run #59 contained only handoff documentation changes.
+
+
+### Final status for this continuation
+- Latest handoff/runbook commit: `453a37b30dfa59db016f40dc353771cb9c83a914`.
+- GitHub Actions run #60: build, `npm install`, `npm run build`, Pages configuration and artifact upload all passed; the deploy job was queued at the time of this note.
+- Phase 1: **IN PROGRESS**. Original migration SQL recovery is complete and byte-verified. Frontend-to-schema static compatibility review is complete. Deployment docs are corrected and the latest production smoke test passed after run #58.
+- Remaining Phase 1 blockers: reconcile the two live-but-unledgered Batch 7/8 versions using the supported linked Supabase CLI repair procedure; establish deterministic dependency installation (lockfile + `npm ci` review).
+- No production database or storage changes were made. No migration repair was executed.
