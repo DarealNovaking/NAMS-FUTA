@@ -1118,3 +1118,33 @@ Recovery commit: `d8a523b465d770dabe2ef8713aa12e7073e1c4da`.
 - No database or application source code changes were included in this recovery batch; only documentation and archived SQL files were committed.
 
 **Phase 1 now has exact source SQL for all 12 ledgered migrations preserved and verified.** The remaining migration-stream gap is the two already-live Batch 7/8 SQL changes that are absent from the live ledger. Do not run a migration push until that discrepancy is reconciled through a supported migration-management process. Dependency lockfile/CI reproducibility is also still open.
+
+
+### Supported migration-ledger repair procedure (prepared, not executed)
+Supabase's current CLI reference confirms that `supabase migration repair` is the supported way to reconcile a remote migration history entry when the schema change is already present. It changes migration tracking metadata only; it does not execute or revert the migration SQL. Reference: https://supabase.com/docs/reference/cli/supabase-migration-repair
+
+For NAMS, the two versions to reconcile are:
+- `20261006150000` — Batch 7 security hardening
+- `20261006160000` — Batch 8 performance/integrity indexes
+
+**Preconditions before repair:**
+1. Copy the 12 exact recovered files from `docs/recovered-migrations/` into the active `supabase/migrations/` directory, preserving timestamps and names. Keep the recovery archive as a safety copy.
+2. Keep the two existing Batch 7/8 files in `supabase/migrations/`; do not replay their SQL.
+3. Confirm the live Batch 7/8 effects again (helper ACLs, `pg_trgm` extension schema, and all 26 expected indexes).
+4. Link the local project to the correct NAMS project ref `amswykapebeevhstmvii`.
+
+**Supported CLI sequence (not yet run):**
+```bash
+supabase migration list --linked
+supabase migration repair 20261006150000 20261006160000 --status applied --linked
+supabase migration list --linked
+supabase db push --linked --dry-run
+```
+
+Expected result: local and remote histories show the same 14 versions (12 recovered ledger entries plus Batch 7 and Batch 8), and the dry-run reports no pending migration to apply. Do not run a normal `supabase db push` as part of this repair step. The repair command updates only the remote migration ledger and does not replay Batch 7/8 SQL.
+
+**Execution status:** not executed in this session. The available Supabase connector exposes migration listing and migration application, but no dedicated CLI migration-repair action. Do not imitate this operation with direct SQL writes to `supabase_migrations.schema_migrations`. A linked Supabase CLI session or a carefully gated CI workflow with appropriate user-provided credentials is required.
+
+### Deployment run after this checkpoint
+- GitHub Actions run #59 for commit `36d0f8d710be2aa94ddee418eb64b4ce4f8cc169`: **SUCCESS** (build and GitHub Pages deploy).
+- The last post-deployment smoke test after run #58 passed. Run #59 contained only handoff documentation changes.
