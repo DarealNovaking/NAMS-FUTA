@@ -1199,3 +1199,47 @@ Expected result: local and remote histories show the same 14 versions (12 recove
 - Dependency reproducibility: still open.
 - Phase 1: **IN PROGRESS**.
 - No production database or Storage changes were made during this continuation.
+
+
+
+## Phase 1 continuation — 2026-11-27 (fresh live migration verification)
+
+### GitHub Actions verification after migration restoration
+- Run #75, ID `46002425509`, commit `06ca2f8d8b1461f8a8b1f571868ec173d5ec6fd2`: **SUCCESS**.
+- Build job: all steps successful, including dependency install, Vite build, Pages configuration and artifact upload.
+- Deploy job: successful.
+- Run #74, ID `46002390881`, was cancelled because a newer commit/run superseded it. This is not a build failure; run #75 is the successful final run for the latest handoff commit.
+- Run #75: https://github.com/DarealNovaking/NAMS-FUTA/actions/runs/46002425509
+
+### Fresh live Supabase verification (read-only)
+- Confirmed the correct connected Supabase account/project: project `NAMS`, ref `amswykapebeevhstmvii`, region `eu-west-1`, status `ACTIVE_HEALTHY`.
+- Re-read the live migration ledger through the Supabase integration. It still contains exactly the same 12 historical versions; Batch 7 and Batch 8 are still absent.
+- Read-only SQL reconfirmed Batch 7 effects:
+  - `pg_trgm` extension is installed.
+  - `public.current_role()` and `public.handle_new_user()` exist as SECURITY DEFINER helpers and have execute grants only to `postgres` and `service_role`.
+  - `extensions.current_role()` exists as SECURITY DEFINER and has execute grants to `anon`, `authenticated`, and `postgres`.
+- Read-only SQL reconfirmed the Batch 8 sample index `projects_level_id_idx` exists.
+- These observations support that the Batch 7/8 effects are already present, while the two migration ledger entries are not. No write query was run.
+- The active GitHub directory `supabase/migrations/` was independently enumerated and contains exactly 14 SQL files: the 12 restored verified ledger migrations plus Batch 7 and Batch 8.
+
+### Tooling limitation and safe boundary
+- The connected Supabase account can list projects, read the live migration ledger and execute read-only SQL, but no connected action exposes the Supabase CLI `migration repair` command.
+- The CLI repair command must therefore be run in a linked local CLI session or a carefully gated GitHub Actions workflow with the required Supabase CLI credentials stored as GitHub repository secrets.
+- Do not substitute direct SQL writes to `supabase_migrations.schema_migrations`; do not use `apply_migration` for this bookkeeping task; do not run a normal production `db push` while Batch 7/8 remain untracked.
+- The recommended repair command remains:
+  ```bash
+  supabase migration repair 20261006150000 20261006160000 --status applied --linked
+  ```
+  followed by `supabase migration list --linked` and `supabase db push --linked --dry-run`. Run only after verifying the linked project ref and the live effects. A dry-run must show no pending migrations before any ordinary push is considered.
+
+### Current status
+- [x] Latest handoff commit successfully built and deployed (run #75).
+- [x] Fresh live project identity/status confirmed.
+- [x] Live ledger still exactly 12 versions; Batch 7/8 absent.
+- [x] Batch 7 helper/extension state and Batch 8 sample index reconfirmed read-only.
+- [x] Active migration directory contains exactly 14 files.
+- [ ] Execute supported CLI migration repair in a controlled CLI environment.
+- [ ] Verify linked migration list and production dry-run.
+- [ ] Generate/commit package lock and switch CI to `npm ci`.
+- [ ] Isolated clean-environment migration replay test.
+- Phase 1 remains **IN PROGRESS**. No production database state was modified during this continuation.
