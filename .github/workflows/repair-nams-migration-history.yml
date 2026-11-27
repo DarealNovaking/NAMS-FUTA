@@ -1,0 +1,58 @@
+name: Repair NAMS migration history (manual, guarded)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type REPAIR_NAMS_MIGRATION_HISTORY to authorize the metadata-only repair'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nams-migration-history-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: ${{ inputs.confirmation == 'REPAIR_NAMS_MIGRATION_HISTORY' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: amswykapebeevhstmvii
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required secrets and target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_ACCESS_TOKEN}" || { echo "Missing SUPABASE_ACCESS_TOKEN repository secret"; exit 1; }
+          test -n "${SUPABASE_DB_PASSWORD}" || { echo "Missing SUPABASE_DB_PASSWORD repository secret"; exit 1; }
+          test "$PROJECT_REF" = "amswykapebeevhstmvii"
+
+      - name: Install Supabase CLI v3
+        uses: supabase/setup-cli@v1
+        with:
+          version: 3.0.0
+
+      - name: Link the exact NAMS project
+        run: supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Show migration state before repair
+        run: supabase migration list --remote="$PROJECT_REF"
+
+      - name: Mark Batch 7 and Batch 8 as already applied
+        run: |
+          supabase migration repair 20261006150000 20261006160000 --status applied --yes --remote="$PROJECT_REF"
+
+      - name: Verify migration state after repair
+        run: supabase migration list --remote="$PROJECT_REF"
+
+      - name: Dry-run pending migrations (must not apply anything)
+        run: supabase db push --dry-run --remote="$PROJECT_REF"
