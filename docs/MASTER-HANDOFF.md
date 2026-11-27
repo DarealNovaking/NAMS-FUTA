@@ -1396,3 +1396,37 @@ Expected result: local and remote histories show the same 14 versions (12 recove
 - [ ] Complete Phase 1 closure review and explicitly transfer any unresolved items to the next phase with rationale.
 
 **Phase 1 remains IN PROGRESS.** No production database change was made during this continuation.
+
+
+## Phase 1 continuation — live Supabase verification (2026-11-27)
+
+### Deployment status
+- Latest handoff commit `881f985b58ec94c8273c90a1d2cf87e30d4036ef` was deployed successfully by GitHub Actions run #84.
+- Run URL: https://github.com/DarealNovaking/NAMS-FUTA/actions/runs/46003762117
+- Run #83 was cancelled because the subsequent handoff commit superseded it; this is expected concurrency behavior, not a build failure.
+
+### Direct live Supabase checks
+- Project `NAMS` (`amswykapebeevhstmvii`) is `ACTIVE_HEALTHY`, Postgres 17.6.
+- Live migration ledger: 12 entries, matching the 12 recovered baseline migration files; Batch 7 and Batch 8 remain unrecorded in the ledger.
+- Public schema: 23 tables; all 23 have RLS enabled; 0 public tables without RLS.
+- Public RLS policies: 48.
+- Public non-internal triggers: 17; all 17 are the previously identified `prevent_hard_delete` triggers.
+- Public indexes: 115.
+- Storage buckets: 7 total; key buckets `event-media`, `gallery`, and `website-files` all exist.
+- `pg_trgm` is installed; `projects_level_id_idx` exists. This reconfirms representative live effects from Batch 7/8, but the complete migration-effect verification still needs to be run immediately before any history repair.
+- These were read-only queries. No production schema, migration ledger, storage, or records were changed.
+
+### Current Supabase advisor findings
+- Security: 1 warning — leaked-password protection is disabled in Supabase Auth. Enable in Auth settings when authorized; this is a dashboard configuration, not a schema migration.
+- Performance: 1 warning — `activity_logs` insert RLS policy should wrap auth function calls in a scalar subquery to avoid per-row re-evaluation.
+- Performance: 57 multiple-permissive-policy warnings. Review policy overlap and role scope before attempting consolidation; do not blindly merge policies.
+- Performance: 78 unused-index informational findings. The archive currently has little/no real content traffic, so these are not grounds for dropping indexes during Phase 1.
+- Advisor checks are snapshots, not proof of exploitable vulnerabilities. Findings are recorded for planned remediation.
+
+### Remaining execution dependencies
+- The lockfile workflow is committed but still requires manual dispatch with `GENERATE_NAMS_LOCKFILE`.
+- The migration repair workflow is committed but still requires its repository secrets and manual dispatch. Do not paste secrets into chat.
+- GitHub browser sign-in is now being connected in this conversation so the two guarded workflows can be dispatched through the authenticated browser. Once GitHub is connected, dispatch the lockfile workflow first, wait for its npm ci/build/Pages deployment result, then do the final migration-effect recheck and migration repair.
+- The Supabase project is accessible through the connected Supabase account used for the successful live checks. No need to request credentials from the user.
+
+**Phase 1 remains IN PROGRESS.** Production remains unchanged by this audit.
