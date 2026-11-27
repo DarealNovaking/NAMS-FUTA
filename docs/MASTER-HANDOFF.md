@@ -1056,3 +1056,52 @@ Deployment:
 - Run #54 (README hosting correction): build, configure-pages and artifact preparation steps completed successfully; GitHub Actions cancelled the run when the newer handoff commit triggered run #55. The deploy job was cancelled, so #54 is not counted as a completed deployment.
 - Run #55 (latest handoff commit `89c085c0c411e7046087df492e5f8952cd7d6955`): build job was in progress at the time of this addendum.
 - No application code changed in either documentation commit. A successful run on the latest head remains the deployment verification gate.
+
+
+## Critical correction — original SQL recovered from live migration ledger — 2026-11-27
+
+The earlier Phase 1 note stating that the migration ledger contained only version/name metadata and that the original SQL was unrecoverable was incorrect. Direct inspection of `supabase_migrations.schema_migrations` showed that the table also stores a `statements text[]` column. All 12 recorded production migrations have one stored SQL statement each.
+
+### Recovery completed
+- Retrieved all 12 original migration statements directly from the live NAMS database's `supabase_migrations.schema_migrations.statements`.
+- Each statement was archived under `docs/recovered-migrations/` using its exact original version and migration name.
+- Re-fetched all 12 files from GitHub and compared each byte-for-byte (UTF-8 text) with the SQL statement returned by the live database. **All 12 exact-match checks passed.**
+- Each stored migration has one statement. The ledger's `rollback` array is null for all 12 records.
+- The recovered SQL archive is intentionally outside `supabase/migrations/`. It is a recovery archive, not yet the active CLI migration directory.
+- No recovered SQL was executed. No production schema, data, policy, storage, Edge Function, Auth setting, or migration-ledger row was changed.
+
+### Recovered files
+- `docs/recovered-migrations/20260904231135_initial_nams_archive_schema.sql`
+- `docs/recovered-migrations/20260907234156_expand_nams_archive_for_handover.sql`
+- `docs/recovered-migrations/20260907234337_harden_public_archive_and_admin_security.sql`
+- `docs/recovered-migrations/20260907234350_add_nams_archive_metadata_and_search_v2.sql`
+- `docs/recovered-migrations/20260907234545_harden_public_archive_visibility_and_storage.sql`
+- `docs/recovered-migrations/20260907234553_harden_auth_profile_defaults.sql`
+- `docs/recovered-migrations/20260907234601_add_admin_account_state.sql`
+- `docs/recovered-migrations/20260907234627_tighten_public_schedule_and_archive_indexes.sql`
+- `docs/recovered-migrations/20260907235329_finalize_nams_storage_and_security.sql`
+- `docs/recovered-migrations/20261010140744_protect_site_identity_from_content_admins.sql`
+- `docs/recovered-migrations/20261010144503_make_activity_logs_append_only.sql`
+- `docs/recovered-migrations/20261104062436_preservation_and_taxonomy_write_access.sql`
+- Recovery instructions and warnings: `docs/recovered-migrations/README.md`
+
+Recovery commit: `d8a523b465d770dabe2ef8713aa12e7073e1c4da`.
+
+### Current migration reconciliation — what is now known
+- The 12 live ledger entries now have their exact original SQL preserved in GitHub's recovery archive.
+- The two existing active-directory files, Batch 7 and Batch 8, still have no matching version rows in the live migration ledger, even though their effects are present in the live catalog.
+- Do not put the 12 recovered files into `supabase/migrations/` while leaving the two unledgered Batch 7/8 files unresolved; that would create a misleading or unsafe pending-migration set.
+- Do not directly insert rows into `supabase_migrations.schema_migrations` or replay the Batch 7/8 SQL against production.
+- The next migration-management decision is whether to use the supported Supabase CLI migration-repair workflow to mark Batch 7/8 as already applied after a full equivalence review, or to preserve them as separately documented manual SQL and construct a canonical migration stream for new environments. This is a production migration-metadata decision and must be handled deliberately, not with ad hoc SQL.
+- A clean new-environment replay must include the Batch 7/8 effects in the correct order; simply applying the 12 recovered ledger files alone would omit those live changes.
+
+### Updated Phase 1 status
+- [x] Recover original SQL for all 12 recorded production migrations.
+- [x] Verify all 12 recovered SQL files exactly match the live ledger statements.
+- [x] Preserve the recovered statements in a non-executable archive with clear warnings.
+- [ ] Reconcile the two live-but-unledgered Batch 7/8 SQL files with the canonical migration stream using a supported, controlled process.
+- [ ] Complete deterministic dependency installation review (no lockfile; workflow still uses `npm install`).
+- [ ] Verify the latest GitHub Pages workflow run triggered by the recovery commit, then re-run the public smoke test.
+- [ ] Once migration-stream reconciliation is agreed and complete, establish a clean-environment replay test without touching production.
+
+**Current Phase 1 status: migration SQL recovery is complete; active migration-stream reconciliation remains open.** The earlier statement that historical SQL could not be recovered is superseded by this correction.
