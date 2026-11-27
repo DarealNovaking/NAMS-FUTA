@@ -1326,3 +1326,30 @@ Expected result: local and remote histories show the same 14 versions (12 recove
 - [ ] Complete Phase 1 closure review and ensure every open item is resolved or explicitly transferred with an owner and reason.
 
 **Phase 1 remains IN PROGRESS.** Public production rendering is now verified. No production database schema, data, Storage, Auth, policy, Edge Function, or migration-ledger state was changed during this smoke test.
+
+
+## Follow-up verification — 2026-11-27 (handoff and CI review)
+
+### Handoff commit deployment
+- Smoke-test report was added to this handoff in commit `7b736a69321d0346b59663daba2d70fc3b70b483`.
+- The next action is to verify its GitHub Pages workflow run before treating the documentation update as deployed.
+
+### CI dependency configuration confirmed
+- `package.json` uses Node 20 in deployment CI and declares direct dependencies with caret ranges:
+  - `@supabase/supabase-js: ^2.57.0`
+  - `lucide-react: ^0.468.0`
+  - `react: ^19.1.1`
+  - `react-dom: ^19.1.1`
+  - `three: ^0.179.1`
+  - `@vitejs/plugin-react: ^4.7.0`
+  - `vite: ^7.1.3`
+- The current deployment workflow still uses `npm install`; no lockfile exists in the repository.
+- Existing successful CI runs prove the current install/build works, but do not prove deterministic dependency resolution across future builds.
+- No lockfile was fabricated. The correct next step is to generate it with npm under Node 20, commit the generated lockfile, switch CI to `npm ci`, then verify a full deployment.
+
+### Execution limitations / production safety
+- The connected GitHub read/write integration can read and update repository files and inspect Actions runs, but its documented fetch endpoint does not expose repository secrets and no workflow-dispatch action is available in the connected tool set.
+- Therefore, secret presence cannot be independently confirmed from this session, and the guarded repair workflow cannot be dispatched through the connected GitHub action.
+- The repair workflow remains committed but unexecuted. No attempt was made to guess secrets or expose credentials in chat.
+- The production migration repair remains a gated, pending operator action. Do not bypass it with direct writes to Supabase migration metadata or an ordinary production `db push`.
+
