@@ -1,0 +1,68 @@
+name: Generate and verify npm lockfile
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type GENERATE_NAMS_LOCKFILE to generate and commit package-lock.json'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: nams-lockfile-generation
+  cancel-in-progress: false
+
+jobs:
+  lockfile:
+    if: ${{ inputs.confirmation == 'GENERATE_NAMS_LOCKFILE' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Generate npm lockfile
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Verify clean reproducible install
+        run: npm ci
+
+      - name: Verify production build
+        run: npm run build
+        env:
+          VITE_BASE_PATH: /NAMS-FUTA/
+          VITE_SUPABASE_URL: https://amswykapebeevhstmvii.supabase.co
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Commit generated lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s package-lock.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "package-lock.json is already current; no commit needed."
+            exit 0
+          fi
+          git commit -m "Add reproducible npm dependency lockfile"
+          git push origin HEAD:main
+
+      - name: Trigger Pages deployment using the committed lockfile
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --ref main
