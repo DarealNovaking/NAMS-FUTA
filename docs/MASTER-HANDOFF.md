@@ -1353,3 +1353,46 @@ Expected result: local and remote histories show the same 14 versions (12 recove
 - The repair workflow remains committed but unexecuted. No attempt was made to guess secrets or expose credentials in chat.
 - The production migration repair remains a gated, pending operator action. Do not bypass it with direct writes to Supabase migration metadata or an ordinary production `db push`.
 
+
+
+## Phase 1 continuation — 2026-11-27 (lockfile workflow and migration command validation)
+
+### Latest deployment check
+- GitHub Actions run #81, ID `46003560350`: **SUCCESS**.
+- Build and deploy jobs both completed successfully for commit `880ea43cb552396b7b19a0335e1c4bbddb952b23`.
+- Run URL: https://github.com/DarealNovaking/NAMS-FUTA/actions/runs/46003560350
+
+### Guarded lockfile-generation workflow added
+- Added `.github/workflows/generate-nams-lockfile.yml`.
+- Manual-only via `workflow_dispatch`; requires exact input `GENERATE_NAMS_LOCKFILE`.
+- Uses Node.js 20, generates a genuine lockfile with `npm install --package-lock-only --ignore-scripts`, then verifies it with `npm ci` and `npm run build`.
+- If the lockfile differs, commits it to `main` using the workflow token, then triggers the existing Pages deployment workflow.
+- Does not require or expose a new credential. The Vite public Supabase publishable key is supplied as the same public build-time value already used by the existing deploy workflow.
+- The workflow was re-fetched and corrected before use: removed setup-node npm caching because no lockfile exists yet at cache-restore time.
+- Workflow URL: https://github.com/DarealNovaking/NAMS-FUTA/blob/main/.github/workflows/generate-nams-lockfile.yml
+- **Not dispatched from this session** because the connected GitHub tool set does not expose a workflow-dispatch action. The manual dispatch is still pending.
+
+### Supabase migration-repair command independently revalidated
+- Current official Supabase CLI v3 docs confirm `migration repair [version] ... --status applied --yes --remote=<project-ref>` supports multiple version arguments, repairs migration history only, and does not execute migration SQL.
+- Current official docs confirm `--remote=<project-ref>` is the v3 hosted-target syntax and `--remote` must be placed last when the command has other arguments.
+- Official references:
+  - https://supabase.com/docs/guides/local-development/cli/migrating-to-v3
+  - https://supabase.com/docs/guides/deployment/database-migrations
+  - https://supabase.com/docs/reference/cli/supabase-migration-list
+- Existing guarded repair workflow command shape is consistent with this syntax:
+  `supabase migration repair 20261006150000 20261006160000 --status applied --yes --remote="$PROJECT_REF"`
+- The repair remains unexecuted. Do not execute until both live Batch 7/8 effects are reconfirmed and the two required repository secrets are available.
+
+### Current Phase 1 checklist (updated)
+- [x] Recover and restore the 12 verified migration files.
+- [x] Verify public production routes via read-only smoke test.
+- [x] Verify latest handoff commit deployment (run #81).
+- [x] Prepare guarded manual-only production migration-history repair workflow.
+- [x] Prepare guarded Node 20 lockfile-generation / `npm ci` verification workflow.
+- [ ] Manually dispatch lockfile workflow with exact confirmation; verify generated lockfile, clean install, build, and follow-on Pages deployment.
+- [ ] Confirm repository secrets are configured; reconfirm Batch 7/8 live effects; dispatch migration repair with explicit authorization.
+- [ ] Verify remote migration list and dry-run reports no pending migrations.
+- [ ] Run clean-environment migration replay in an isolated test Supabase project/database.
+- [ ] Complete Phase 1 closure review and explicitly transfer any unresolved items to the next phase with rationale.
+
+**Phase 1 remains IN PROGRESS.** No production database change was made during this continuation.
