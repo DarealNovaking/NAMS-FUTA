@@ -1156,3 +1156,46 @@ Expected result: local and remote histories show the same 14 versions (12 recove
 - Phase 1: **IN PROGRESS**. Original migration SQL recovery is complete and byte-verified. Frontend-to-schema static compatibility review is complete. Deployment docs are corrected and the latest production smoke test passed after run #58.
 - Remaining Phase 1 blockers: reconcile the two live-but-unledgered Batch 7/8 versions using the supported linked Supabase CLI repair procedure; establish deterministic dependency installation (lockfile + `npm ci` review).
 - No production database or storage changes were made. No migration repair was executed.
+
+
+
+## Phase 1 continuation — 2026-11-27 (run #61 + migration directory restoration)
+
+### Deployment verification
+- GitHub Actions run #61, ID `46001662277`, for commit `8ad3dac885498b0ea7671405a7ec2390c1139309`: **SUCCESS**.
+- Both jobs completed successfully: build job (dependency install, Vite build, Pages configuration and artifact upload) and deploy job (GitHub Pages deployment).
+- This run was documentation-only; it confirms the latest repository handoff commit deployed, not a new application-code release.
+- Run URL: https://github.com/DarealNovaking/NAMS-FUTA/actions/runs/46001662277
+
+### Restored verified migrations to the active Supabase CLI directory
+- Copied all 12 recovered SQL files from `docs/recovered-migrations/` into `supabase/migrations/`, preserving the exact original timestamps and filenames.
+- The original recovery archive remains intact as a second copy.
+- The copied files have the same Git blob SHAs as their recovery-archive counterparts, confirming byte-identical content in the repository.
+- The two existing Batch 7 and Batch 8 files remain in the active directory.
+- Active migration directory now contains the full 14-file sequence: 12 migrations already recorded in the production ledger plus Batch 7 and Batch 8.
+- This was a repository-only restoration. No SQL was run; no production schema, data, policies, Storage, Auth, Edge Functions or migration-ledger entries were changed.
+- Important safety state: until Batch 7/8 are reconciled with the supported CLI repair command, **do not run `supabase db push` against production**. The two files are present locally but intentionally unrecorded remotely; a normal push could attempt to execute them again.
+
+### Dependency reproducibility — current finding
+- Reconfirmed `package.json` has caret ranges for all direct dependencies.
+- Reconfirmed no `package-lock.json` exists at repository root.
+- Reconfirmed `.github/workflows/deploy.yml` runs `npm install`, not `npm ci`.
+- Run #61 proves the current floating install succeeds today, but it does not prove reproducibility. Do not claim deterministic dependency resolution until a lockfile is generated from a clean dependency resolution and CI is switched to `npm ci` and passes.
+
+### Current Phase 1 checklist
+- [x] Recover all 12 original production-ledger SQL statements and verify byte-identical copies.
+- [x] Restore those 12 verified migrations to `supabase/migrations/` while retaining the archive.
+- [x] Preserve Batch 7 and Batch 8 SQL in the same active migration directory.
+- [x] Verify GitHub Actions run #61 build and deploy both succeeded.
+- [ ] Reconfirm live Batch 7/8 effects, then reconcile their two migration versions using supported `supabase migration repair` (metadata-only) with a linked CLI/controlled CI execution.
+- [ ] Run migration list and `db push --dry-run` after repair; expected no pending migrations. Never run a normal production push before this check.
+- [ ] Generate and commit a package lockfile from a clean install; change deployment CI to `npm ci`; verify build and deploy.
+- [ ] Run clean-environment migration replay in an isolated test Supabase project/database after migration history is reconciled; never use production for the replay test.
+- [ ] Repeat public production smoke test after the next application-code deployment.
+
+### Resulting state
+- Latest deployment verification: run #61 SUCCESS.
+- Migration files: all 14 now present in the active CLI directory; remote migration ledger still has only the 12 historical entries, so Batch 7/8 repair remains outstanding.
+- Dependency reproducibility: still open.
+- Phase 1: **IN PROGRESS**.
+- No production database or Storage changes were made during this continuation.
