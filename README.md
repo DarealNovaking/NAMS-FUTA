@@ -36,7 +36,7 @@ The platform preserves academic resources, institutional records, projects, even
 ## Stack
 
 - Frontend: modern React application
-- Hosting: Netlify
+- Hosting: GitHub Pages (current production deployment)
 - Backend: Supabase
 - Database: PostgreSQL
 - Authentication: Supabase Auth
@@ -54,3 +54,17 @@ The platform preserves academic resources, institutional records, projects, even
 - No public self-registration in V1
 - Sensitive records protected by role and visibility
 - Global footer credit: **Brought to you by TEAM NEXUS**
+
+
+## Deployment
+
+The active production deployment is managed by GitHub Actions and published to GitHub Pages:
+
+- Production site: https://darealnovaking.github.io/NAMS-FUTA/
+- Workflow: `.github/workflows/deploy.yml`
+- Trigger: pushes to `main` or manual workflow dispatch
+- Build command: `npm run build`
+- Vite base path: `/NAMS-FUTA/`
+- Backend: the NAMS Supabase project configured through the workflow's public frontend environment values
+
+The repository still contains `netlify.toml` and `vercel.json` for alternate-host configuration, but those files are not used by the active GitHub Pages workflow. Do not assume they are production deployments.
